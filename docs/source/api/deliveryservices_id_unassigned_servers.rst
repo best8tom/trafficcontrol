@@ -69,9 +69,9 @@ Response Structure
 :offlineReason:  A user-entered reason why the server is in ADMIN_DOWN or OFFLINE status
 :physLocation:   The physical location name
 :physLocationId: The physical location id
-:profile:        The assigned profile name
-:profileDesc:    The assigned profile description
-:profileId:      The assigned profile Id
+:profile:        The :ref:`profile-name` of the :term:`Profile` assigned to this server
+:profileDesc:    A :ref:`profile-description` of the :term:`Profile` assigned to this server
+:profileId:      The :ref:`profile-id` of the :term:`Profile` assigned to this server
 :rack:           A string indicating rack location
 :routerHostName: The human readable name of the router
 :routerPortName: The human readable name of the router port
@@ -132,5 +132,5 @@ Response Structure
 				]
 		}
 
-.. [1] Users with the roles "admin" and/or "operations" will be able to see servers not assigned to *any* given :term:`Delivery Service`, whereas any other user will only be able to see the servers not assigned to :term:`Delivery Service`\ s their Tenant is allowed to see.
+.. [1] Users with the roles "admin" and/or "operations" will be able to see servers not assigned to *any* given :term:`Delivery Service`, whereas any other user will only be able to see the servers not assigned to :term:`Delivery Services` their Tenant is allowed to see.
 

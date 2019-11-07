@@ -50,9 +50,9 @@ func (v *TORole) NewReadObj() interface{}       { return &TORole{} }
 func (v *TORole) SelectQuery() string           { return selectQuery() }
 func (v *TORole) ParamColumns() map[string]dbhelpers.WhereColumnInfo {
 	return map[string]dbhelpers.WhereColumnInfo{
-		"name": dbhelpers.WhereColumnInfo{"name", nil},
-		"id":   dbhelpers.WhereColumnInfo{"id", api.IsInt},
-	}
+		"name":      dbhelpers.WhereColumnInfo{"name", nil},
+		"id":        dbhelpers.WhereColumnInfo{"id", api.IsInt},
+		"privLevel": dbhelpers.WhereColumnInfo{"priv_level", api.IsInt}}
 }
 func (v *TORole) UpdateQuery() string { return updateQuery() }
 func (v *TORole) DeleteQuery() string { return deleteQuery() }
@@ -122,9 +122,11 @@ func (role *TORole) Create() (error, error, int) {
 	}
 
 	//after we have role ID we can associate the capabilities:
-	userErr, sysErr, errCode = role.createRoleCapabilityAssociations(role.ReqInfo.Tx)
-	if userErr != nil || sysErr != nil {
-		return userErr, sysErr, errCode
+	if role.Capabilities != nil && len(*role.Capabilities) > 0 {
+		userErr, sysErr, errCode = role.createRoleCapabilityAssociations(role.ReqInfo.Tx)
+		if userErr != nil || sysErr != nil {
+			return userErr, sysErr, errCode
+		}
 	}
 	return nil, nil, http.StatusOK
 }
@@ -157,16 +159,24 @@ func (role *TORole) deleteRoleCapabilityAssociations(tx *sqlx.Tx) (error, error,
 }
 
 func (role *TORole) Read() ([]interface{}, error, error, int) {
+	version := role.APIInfo().Version
 	vals, userErr, sysErr, errCode := api.GenericRead(role)
 	if userErr != nil || sysErr != nil {
 		return nil, userErr, sysErr, errCode
 	}
+	returnable := []interface{}{}
 	for _, val := range vals {
 		rl := val.(*TORole)
-		caps := ([]string)(*rl.PQCapabilities)
-		rl.Capabilities = &caps
+		switch {
+		case version.Minor >= 3:
+			caps := ([]string)(*rl.PQCapabilities)
+			rl.Capabilities = &caps
+			returnable = append(returnable, rl)
+		case version.Minor >= 1:
+			returnable = append(returnable, rl.RoleV11)
+		}
 	}
-	return vals, nil, nil, http.StatusOK
+	return returnable, nil, nil, http.StatusOK
 }
 
 func (role *TORole) Update() (error, error, int) {
@@ -177,12 +187,16 @@ func (role *TORole) Update() (error, error, int) {
 	if userErr != nil || sysErr != nil {
 		return userErr, sysErr, errCode
 	}
+
 	// TODO cascade delete, to automatically do this in SQL?
-	userErr, sysErr, errCode = role.deleteRoleCapabilityAssociations(role.ReqInfo.Tx)
-	if userErr != nil || sysErr != nil {
-		return userErr, sysErr, errCode
+	if role.Capabilities != nil && *role.Capabilities != nil {
+		userErr, sysErr, errCode = role.deleteRoleCapabilityAssociations(role.ReqInfo.Tx)
+		if userErr != nil || sysErr != nil {
+			return userErr, sysErr, errCode
+		}
+		return role.createRoleCapabilityAssociations(role.ReqInfo.Tx)
 	}
-	return role.createRoleCapabilityAssociations(role.ReqInfo.Tx)
+	return nil, nil, http.StatusOK
 }
 
 func (role *TORole) Delete() (error, error, int) {

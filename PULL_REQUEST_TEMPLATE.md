@@ -46,7 +46,7 @@ it includes tests (and most should), outline here the steps needed to run the
 tests. If not, lay out the manual testing procedure and please explain why
 tests are unnecessary for this Pull Request. -->
 
-## If this is a bug fix, what versions of Traffic Ops are affected?
+## If this is a bug fix, what versions of Traffic Control are affected?
 <!-- If this PR fixes a bug, please list here all of the affected versions - to
 the best of your knowledge. It's also pretty helpful to include a commit hash
 of where 'master' is at the time this PR is opened (if it affects master),
@@ -84,6 +84,21 @@ e.g.
 - [ ] This PR includes any and all required license headers
 - [ ] This PR ensures that database migration sequence is correct OR this PR does not include a database migration
 - [ ] This PR **DOES NOT FIX A SERIOUS SECURITY VULNERABILITY** (see [the Apache Software Foundation's security guidelines](https://www.apache.org/security/) for details)
+
+
+## Additional Information
+<!-- If you would like to include any additional information on the PR for
+potential reviewers please put it here.
+
+Some examples of this would be:
+
+- Before and after screenshots/gifs of the Traffic Portal if it is affected
+- Links to other dependent Pull Requests
+- References to relevant context (e.g. new/updates to dependent libraries,
+mailing list records, blueprints)
+
+Feel free to leave this section blank (or, preferably, delete it entirely).
+-->
 
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

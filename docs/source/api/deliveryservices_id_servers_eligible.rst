@@ -23,7 +23,11 @@
 
 ``GET``
 =======
-Retrieves properties of Edge-Tier servers eligible for assignment to a particular :term:`Delivery Service`.
+Retrieves properties of Edge-Tier servers eligible for assignment to a particular :term:`Delivery Service`. Eligibility is determined based on the following properties:
+
+1. Server Type: Edge, Origin
+2. CDN: Server, :term:`Delivery Service` must belong to the same CDN
+3. Server Capabilities: If the :term:`Delivery Service` has  :term:`Delivery Service required capabilities`, a server must have all defined capabilities
 
 :Auth. Required: Yes
 :Roles Required: "admin" or "operations"\ [1]_
@@ -72,9 +76,9 @@ Response Structure
 :offlineReason:  A user-entered reason why the server is in ADMIN_DOWN or OFFLINE status (will be empty if not offline)
 :physLocation:   The name of the physical location at which the server resides
 :physLocationId: An integral, unique identifier for the physical location at which the server resides
-:profile:        The name of the profile assigned to this server
-:profileDesc:    A description of the profile assigned to this server
-:profileId:      An integral, unique identifier for the profile assigned to this server
+:profile:        The :ref:`profile-name` of the :term:`Profile` assigned to this server
+:profileDesc:    A :ref:`profile-description` of the :term:`Profile` assigned to this server
+:profileId:      The :ref:`profile-id` of the :term:`Profile` assigned to this server
 :rack:           A string indicating "rack" location
 :routerHostName: The human-readable name of the router
 :routerPortName: The human-readable name of the router port

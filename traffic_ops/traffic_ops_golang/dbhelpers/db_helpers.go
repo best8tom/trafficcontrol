@@ -23,6 +23,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/apache/trafficcontrol/lib/go-log"
@@ -38,10 +39,33 @@ type WhereColumnInfo struct {
 
 const BaseWhere = "\nWHERE"
 const BaseOrderBy = "\nORDER BY"
+const BaseLimit = "\nLIMIT"
+const BaseOffset = "\nOFFSET"
 
-func BuildWhereAndOrderBy(parameters map[string]string, queryParamsToSQLCols map[string]WhereColumnInfo) (string, string, map[string]interface{}, []error) {
+const getDSTenantIDFromXMLIDQuery = `
+SELECT deliveryservice.tenant_id
+FROM deliveryservice
+WHERE deliveryservice.xml_id = $1
+`
+
+const getFederationIDForUserIDByXMLIDQuery = `
+SELECT federation_deliveryservice.federation
+FROM federation_deliveryservice
+WHERE federation_deliveryservice.deliveryservice IN (
+	SELECT deliveryservice.id
+	FROM deliveryservice
+	WHERE deliveryservice.xml_id = $1
+) AND federation_deliveryservice.federation IN (
+	SELECT federation_tmuser.federation
+	FROM federation_tmuser
+	WHERE federation_tmuser.tm_user = $2
+)
+`
+
+func BuildWhereAndOrderByAndPagination(parameters map[string]string, queryParamsToSQLCols map[string]WhereColumnInfo) (string, string, string, map[string]interface{}, []error) {
 	whereClause := BaseWhere
 	orderBy := BaseOrderBy
+	paginationClause := BaseLimit
 	var criteria string
 	var queryValues map[string]interface{}
 	var errs []error
@@ -51,7 +75,7 @@ func BuildWhereAndOrderBy(parameters map[string]string, queryParamsToSQLCols map
 		whereClause += " " + criteria
 	}
 	if len(errs) > 0 {
-		return "", "", queryValues, errs
+		return "", "", "", queryValues, errs
 	}
 
 	if orderby, ok := parameters["orderby"]; ok {
@@ -59,22 +83,63 @@ func BuildWhereAndOrderBy(parameters map[string]string, queryParamsToSQLCols map
 		if colInfo, ok := queryParamsToSQLCols[orderby]; ok {
 			log.Debugln("orderby column ", colInfo)
 			orderBy += " " + colInfo.Column
+
+			// if orderby is specified and valid, also check for sortOrder
+			if sortOrder, exists := parameters["sortOrder"]; exists {
+				log.Debugln("sortOrder: ", sortOrder)
+				if sortOrder == "desc" {
+					orderBy += " DESC"
+				} else if sortOrder != "asc" {
+					log.Debugln("sortOrder value must be desc or asc. Invalid value provided: ", sortOrder)
+				}
+			}
 		} else {
-			log.Debugln("Incorrect name for orderby: ", orderby)
+			log.Debugln("This column is not configured to support orderby: ", orderby)
 		}
 	}
+
+	if limit, exists := parameters["limit"]; exists {
+		// try to convert to int, if it fails the limit parameter is invalid, so return an error
+		limitInt, err := strconv.Atoi(limit)
+		if err != nil || limitInt < 1 {
+			errs = append(errs, errors.New("limit parameter must be a positive integer"))
+			return "", "", "", queryValues, errs
+		}
+		log.Debugln("limit: ", limit)
+		paginationClause += " " + limit
+		if offset, exists := parameters["offset"]; exists {
+			// check that offset is valid
+			offsetInt, err := strconv.Atoi(offset)
+			if err != nil || offsetInt < 1 {
+				errs = append(errs, errors.New("offset parameter must be a positive integer"))
+				return "", "", "", queryValues, errs
+			}
+			paginationClause += BaseOffset + " " + offset
+		} else if page, exists := parameters["page"]; exists {
+			// check that offset is valid
+			page, err := strconv.Atoi(page)
+			if err != nil || page < 1 {
+				errs = append(errs, errors.New("page parameter must be a positive integer"))
+				return "", "", "", queryValues, errs
+			}
+			paginationClause += BaseOffset + " " + strconv.Itoa((page-1)*limitInt)
+		}
+	}
+
 	if whereClause == BaseWhere {
 		whereClause = ""
 	}
 	if orderBy == BaseOrderBy {
 		orderBy = ""
 	}
-	log.Debugf("\n--\n Where: %s \n Order By: %s", whereClause, orderBy)
-	return whereClause, orderBy, queryValues, errs
+	if paginationClause == BaseLimit {
+		paginationClause = ""
+	}
+	log.Debugf("\n--\n Where: %s \n Order By: %s \n Limit+Offset: %s", whereClause, orderBy, paginationClause)
+	return whereClause, orderBy, paginationClause, queryValues, errs
 }
 
 func parseCriteriaAndQueryValues(queryParamsToSQLCols map[string]WhereColumnInfo, parameters map[string]string) (string, map[string]interface{}, []error) {
-	m := make(map[string]interface{})
 	var criteria string
 
 	var criteriaArgs []string
@@ -89,7 +154,6 @@ func parseCriteriaAndQueryValues(queryParamsToSQLCols map[string]WhereColumnInfo
 			if err != nil {
 				errs = append(errs, errors.New(key+" "+err.Error()))
 			} else {
-				m[key] = urlValue
 				criteria = colInfo.Column + "=:" + key
 				criteriaArgs = append(criteriaArgs, criteria)
 				queryValues[key] = urlValue
@@ -171,6 +235,21 @@ func GetDSNameFromID(tx *sql.Tx, id int) (tc.DeliveryServiceName, bool, error) {
 	return name, true, nil
 }
 
+// GetDSTenantIDFromXMLID fetches the ID of the Tenant to whom the Delivery Service identified by the
+// the provided XMLID belongs. It returns, in order, the requested ID (if one could be found), a
+// boolean indicating whether or not a Delivery Service with the provided xmlid could be found, and
+// an error for logging in case something unexpected goes wrong.
+func GetDSTenantIDFromXMLID(tx *sql.Tx, xmlid string) (int, bool, error) {
+	var id int
+	if err := tx.QueryRow(getDSTenantIDFromXMLIDQuery, xmlid).Scan(&id); err != nil {
+		if err == sql.ErrNoRows {
+			return -1, false, nil
+		}
+		return -1, false, fmt.Errorf("Fetching Tenant ID for DS %s: %v", xmlid, err)
+	}
+	return id, true, nil
+}
+
 // GetProfileNameFromID returns the profile's name, whether a profile with ID exists, or any error.
 func GetProfileNameFromID(id int, tx *sql.Tx) (string, bool, error) {
 	name := ""
@@ -193,6 +272,42 @@ func GetProfileIDFromName(name string, tx *sql.Tx) (int, bool, error) {
 		return 0, false, errors.New("querying profile id from name: " + err.Error())
 	}
 	return id, true, nil
+}
+
+// GetServerCapabilitiesFromName returns the server's capabilities.
+func GetServerCapabilitiesFromName(name string, tx *sql.Tx) ([]string, error) {
+	var caps []string
+	q := `SELECT ARRAY(SELECT ssc.server_capability FROM server s JOIN server_server_capability ssc ON s.id = ssc.server WHERE s.host_name = $1 ORDER BY ssc.server_capability);`
+	rows, err := tx.Query(q, name)
+	if err != nil {
+		return nil, errors.New("querying server capabilities from name: " + err.Error())
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		if err := rows.Scan(pq.Array(&caps)); err != nil {
+			return nil, errors.New("scanning capability: " + err.Error())
+		}
+	}
+	return caps, nil
+}
+
+// GetDSRequiredCapabilitiesFromID returns the server's capabilities.
+func GetDSRequiredCapabilitiesFromID(id int, tx *sql.Tx) ([]string, error) {
+	var caps []string
+	q := `SELECT ARRAY(SELECT drc.required_capability FROM deliveryservices_required_capability drc WHERE drc.deliveryservice_id = $1 ORDER BY drc.required_capability);`
+	rows, err := tx.Query(q, id)
+	if err != nil {
+		return nil, errors.New("querying deliveryservice required capabilities from id: " + err.Error())
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		if err := rows.Scan(pq.Array(&caps)); err != nil {
+			return nil, errors.New("scanning capability: " + err.Error())
+		}
+	}
+	return caps, nil
 }
 
 // Returns true if the cdn exists
@@ -230,19 +345,105 @@ func GetCDNDomainFromName(tx *sql.Tx, cdnName tc.CDNName) (string, bool, error) 
 	return domain, true, nil
 }
 
-// ServerExists returns true if the server exists.
-func ServerExists(serverName string, tx *sql.Tx) (bool, error) {
+// GetServerInfo returns a ServerInfo struct, whether the server exists, and an error (if one occurs).
+func GetServerInfo(serverID int, tx *sql.Tx) (tc.ServerInfo, bool, error) {
+	q := `
+SELECT
+  s.cachegroup as cachegroup_id,
+  s.cdn_id as cdn_id,
+  s.domain_name as domain_name,
+  s.host_name as host_name,
+  t.name as server_type
+FROM
+  server s
+JOIN type t ON s.type = t.id
+WHERE s.id = $1
+`
+	row := tc.ServerInfo{}
+	if err := tx.QueryRow(q, serverID).Scan(
+		&row.CachegroupID,
+		&row.CDNID,
+		&row.DomainName,
+		&row.HostName,
+		&row.Type,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return row, false, nil
+		}
+		return row, false, fmt.Errorf("querying server id %d: %v", serverID, err.Error())
+	}
+	return row, true, nil
+}
+
+// GetStatusByID returns a Status struct, a bool for whether or not a status of the given ID exists, and an error (if one occurs).
+func GetStatusByID(id int, tx *sql.Tx) (tc.StatusNullable, bool, error) {
+	q := `
+SELECT
+  description,
+  id,
+  last_updated,
+  name
+FROM
+  status s
+WHERE
+  id = $1
+`
+	row := tc.StatusNullable{}
+	if err := tx.QueryRow(q, id).Scan(
+		&row.Description,
+		&row.ID,
+		&row.LastUpdated,
+		&row.Name,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return row, false, nil
+		}
+		return row, false, fmt.Errorf("querying status id %d: %v", id, err.Error())
+	}
+	return row, true, nil
+}
+
+// GetStatusByName returns a Status struct, a bool for whether or not a status of the given name exists, and an error (if one occurs).
+func GetStatusByName(name string, tx *sql.Tx) (tc.StatusNullable, bool, error) {
+	q := `
+SELECT
+  description,
+  id,
+  last_updated,
+  name
+FROM
+  status s
+WHERE
+  name = $1
+`
+	row := tc.StatusNullable{}
+	if err := tx.QueryRow(q, name).Scan(
+		&row.Description,
+		&row.ID,
+		&row.LastUpdated,
+		&row.Name,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return row, false, nil
+		}
+		return row, false, fmt.Errorf("querying status name %s: %v", name, err.Error())
+	}
+	return row, true, nil
+}
+
+// GetServerIDFromName gets server id from a given name
+func GetServerIDFromName(serverName string, tx *sql.Tx) (int, bool, error) {
 	id := 0
 	if err := tx.QueryRow(`SELECT id FROM server WHERE host_name = $1`, serverName).Scan(&id); err != nil {
 		if err == sql.ErrNoRows {
-			return false, nil
+			return id, false, nil
 		}
-		return false, errors.New("querying server name: " + err.Error())
+		return id, false, errors.New("querying server name: " + err.Error())
 	}
-	return true, nil
+	return id, true, nil
 }
 
-func GetServerNameFromID(tx *sql.Tx, id int64) (string, bool, error) {
+func GetServerNameFromID(tx *sql.Tx, id int) (string, bool, error) {
 	name := ""
 	if err := tx.QueryRow(`SELECT host_name FROM server WHERE id = $1`, id).Scan(&name); err != nil {
 		if err == sql.ErrNoRows {
@@ -289,4 +490,30 @@ func GetCDNs(tx *sql.Tx) (map[tc.CDNName]struct{}, error) {
 		cdns[cdn] = struct{}{}
 	}
 	return cdns, nil
+}
+
+// GetCacheGroupNameFromID Get Cache Group name from a given ID
+func GetCacheGroupNameFromID(tx *sql.Tx, id int64) (tc.CacheGroupName, bool, error) {
+	name := ""
+	if err := tx.QueryRow(`SELECT name FROM cachegroup WHERE id = $1`, id).Scan(&name); err != nil {
+		if err == sql.ErrNoRows {
+			return "", false, nil
+		}
+		return "", false, errors.New("querying cachegroup ID: " + err.Error())
+	}
+	return tc.CacheGroupName(name), true, nil
+}
+
+// GetFederationIDForUserIDByXMLID retrieves the ID of the Federation assigned to the user defined by
+// userID on the Delivery Service identified by xmlid. If no such federation exists, the boolean
+// returned will be 'false', while the error indicates unexpected errors that occurred when querying.
+func GetFederationIDForUserIDByXMLID(tx *sql.Tx, userID int, xmlid string) (uint, bool, error) {
+	var id uint
+	if err := tx.QueryRow(getFederationIDForUserIDByXMLIDQuery, xmlid, userID).Scan(&id); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, false, nil
+		}
+		return 0, false, fmt.Errorf("Getting Federation ID for user #%d by DS XMLID '%s': %v", userID, xmlid, err)
+	}
+	return id, true, nil
 }

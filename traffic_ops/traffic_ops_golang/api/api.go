@@ -27,18 +27,20 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/smtp"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/apache/trafficcontrol/lib/go-log"
+	"github.com/apache/trafficcontrol/lib/go-rfc"
 	"github.com/apache/trafficcontrol/lib/go-tc"
-	"github.com/apache/trafficcontrol/lib/go-util"
 	"github.com/apache/trafficcontrol/traffic_ops/traffic_ops_golang/auth"
 	"github.com/apache/trafficcontrol/traffic_ops/traffic_ops_golang/config"
 	"github.com/apache/trafficcontrol/traffic_ops/traffic_ops_golang/tocookie"
 
+	influx "github.com/influxdata/influxdb/client/v2"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
@@ -47,6 +49,18 @@ const DBContextKey = "db"
 const ConfigContextKey = "context"
 const ReqIDContextKey = "reqid"
 const APIRespWrittenKey = "respwritten"
+
+const influxServersQuery = `
+SELECT (host_name||'.'||domain_name) as fqdn,
+       tcp_port,
+       https_port
+FROM server
+WHERE type in ( SELECT id
+                FROM type
+                WHERE name='INFLUXDB'
+              )
+AND status=(SELECT id FROM status WHERE name='ONLINE')
+`
 
 // WriteResp takes any object, serializes it as JSON, and writes that to w. Any errors are logged and written to w via tc.GetHandleErrorsFunc.
 // This is a helper for the common case; not using this in unusual cases is perfectly acceptable.
@@ -72,7 +86,7 @@ func WriteRespRaw(w http.ResponseWriter, r *http.Request, v interface{}) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(bts)
+	w.Write(append(bts, '\n'))
 }
 
 // WriteRespVals is like WriteResp, but also takes a map of root-level values to write. The API most commonly needs these for meta-parameters, like size, limit, and orderby.
@@ -287,8 +301,17 @@ type APIInfo struct {
 	IntParams map[string]int
 	User      *auth.CurrentUser
 	ReqID     uint64
+	Version   *Version
 	Tx        *sqlx.Tx
 	Config    *config.Config
+}
+
+// Creates a deprecation warning for an endpoint, with a proposed alternative.
+func DeprecationWarning(alternative string) tc.Alert {
+	return tc.Alert{
+		Level: tc.WarnLevel.String(),
+		Text:  fmt.Sprintf("This request method of this endpoint is deprecated. You are advised to switch to '%s' at your earliest convenience", alternative),
+	}
 }
 
 // NewInfo get and returns the context info needed by handlers. It also returns any user error, any system error, and the status code which should be returned to the client if an error occurred.
@@ -333,6 +356,7 @@ func NewInfo(r *http.Request, requiredParams []string, intParamNames []string) (
 	if err != nil {
 		return &APIInfo{Tx: &sqlx.Tx{}}, errors.New("getting reqID: " + err.Error()), nil, http.StatusInternalServerError
 	}
+	version := getRequestedAPIVersion(r.URL.Path)
 
 	user, err := auth.GetCurrentUser(r.Context())
 	if err != nil {
@@ -350,6 +374,7 @@ func NewInfo(r *http.Request, requiredParams []string, intParamNames []string) (
 	return &APIInfo{
 		Config:    cfg,
 		ReqID:     reqID,
+		Version:   version,
 		Params:    params,
 		IntParams: intParams,
 		User:      user,
@@ -366,6 +391,93 @@ func (inf *APIInfo) Close() {
 	}
 }
 
+// SendMail is a convenience method used to call SendMail using an APIInfo structure's configuration.
+func (inf *APIInfo) SendMail(to rfc.EmailAddress, msg []byte) (int, error, error) {
+	return SendMail(to, msg, inf.Config)
+}
+
+// SendMail sends an email msg to the address identified by to. The msg parameter should be an
+// RFC822-style email with headers first, a blank line, and then the message body. The lines of msg
+// should be CRLF terminated. The msg headers should usually include fields such as "From", "To",
+// "Subject", and "Cc". Sending "Bcc" messages is accomplished by including an email address in the
+// to parameter but not including it in the msg headers.
+// The cfg parameter is used to set things like the "From" field, as well as for connection
+// and authentication with an external SMTP server.
+// SendMail returns (in order) an HTTP status code, a user-friendly error, and an error fit for
+// logging to system error logs. If either the user or system error is non-nil, the operation failed,
+// and the HTTP status code indicates the type of failure.
+func SendMail(to rfc.EmailAddress, msg []byte, cfg *config.Config) (int, error, error) {
+	if !cfg.SMTP.Enabled {
+		return http.StatusInternalServerError, nil, errors.New("SMTP is not enabled; mail cannot be sent")
+	}
+	auth := smtp.PlainAuth("", cfg.SMTP.User, cfg.SMTP.Password, strings.Split(cfg.SMTP.Address, ":")[0])
+	err := smtp.SendMail(cfg.SMTP.Address, auth, cfg.ConfigTO.EmailFrom.String(), []string{to.String()}, msg)
+	if err != nil {
+		return http.StatusInternalServerError, nil, fmt.Errorf("Failed to send email: %v", err)
+	}
+	return http.StatusOK, nil, nil
+}
+
+// CreateInfluxClient onstructs and returns an InfluxDB HTTP client, if enabled and when possible.
+// The error this returns should not be exposed to the user; it's for logging purposes only.
+//
+// If Influx connections are not enabled, this will return `nil` - but also no error. It is expected
+// that the caller will handle this situation appropriately.
+func (inf *APIInfo) CreateInfluxClient() (*influx.Client, error) {
+	if !inf.Config.InfluxEnabled {
+		return nil, nil
+	}
+
+	var fqdn string
+	var tcpPort uint
+	var httpsPort sql.NullInt64 // this is the only one that's optional
+
+	row := inf.Tx.Tx.QueryRow(influxServersQuery)
+	if e := row.Scan(&fqdn, &tcpPort, &httpsPort); e != nil {
+		return nil, fmt.Errorf("Failed to create influx client: %v", e)
+	}
+
+	host := "http%s://%s:%d"
+	if inf.Config.ConfigInflux != nil && *inf.Config.ConfigInflux.Secure {
+		if !httpsPort.Valid {
+			log.Warnf("INFLUXDB Server %s has no secure ports, assuming default of 8086!", fqdn)
+			httpsPort = sql.NullInt64{8086, true}
+		}
+		port, err := httpsPort.Value()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create influx client: %v", err)
+		}
+
+		p := port.(int64)
+		if p <= 0 || p > 65535 {
+			log.Warnf("INFLUXDB Server %s has invalid port, assuming default of 8086!", fqdn)
+			p = 8086
+		}
+
+		host = fmt.Sprintf(host, "s", fqdn, p)
+	} else if tcpPort > 0 && tcpPort <= 65535 {
+		host = fmt.Sprintf(host, "", fqdn, tcpPort)
+	} else {
+		log.Warnf("INFLUXDB Server %s has invalid port, assuming default of 8086!", fqdn)
+		host = fmt.Sprintf(host, "", fqdn, 8086)
+	}
+
+	config := influx.HTTPConfig{
+		Addr:      host,
+		Username:  inf.Config.ConfigInflux.User,
+		Password:  inf.Config.ConfigInflux.Password,
+		UserAgent: fmt.Sprintf("TrafficOps/%s (Go)", inf.Config.Version),
+		Timeout:   time.Duration(float64(inf.Config.ReadTimeout)/2.1) * time.Second,
+	}
+
+	var client influx.Client
+	client, e := influx.NewHTTPClient(config)
+	if client == nil {
+		return nil, fmt.Errorf("Failed to create influx client (client was nil): %v", e)
+	}
+	return &client, e
+}
+
 // APIInfoImpl implements APIInfo via the APIInfoer interface
 type APIInfoImpl struct {
 	ReqInfo *APIInfo
@@ -377,6 +489,40 @@ func (val *APIInfoImpl) SetInfo(inf *APIInfo) {
 
 func (val APIInfoImpl) APIInfo() *APIInfo {
 	return val.ReqInfo
+}
+
+type Version struct {
+	Major uint64
+	Minor uint64
+}
+
+// getRequestedAPIVersion returns a pointer to the requested API Version from the request if it exists or returns nil otherwise.
+func getRequestedAPIVersion(path string) *Version {
+	pathParts := strings.Split(path, "/")
+	if len(pathParts) < 2 {
+		return nil // path doesn't start with `/api`, so it's not an api request
+	}
+	if strings.ToLower(pathParts[1]) != "api" {
+		return nil // path doesn't start with `/api`, so it's not an api request
+	}
+	if len(pathParts) < 3 {
+		return nil // path starts with `/api` but not `/api/{version}`, so it's an api request, and an unknown/nonexistent version.
+	}
+	version := pathParts[2]
+
+	versionParts := strings.Split(version, ".")
+	if len(versionParts) != 2 {
+		return nil
+	}
+	majorVersion, err := strconv.ParseUint(versionParts[0], 10, 64)
+	if err != nil {
+		return nil
+	}
+	minorVersion, err := strconv.ParseUint(versionParts[1], 10, 64)
+	if err != nil {
+		return nil
+	}
+	return &Version{Major: majorVersion, Minor: minorVersion}
 }
 
 // GetDB returns the database from the context. This should very rarely be needed, rather `NewInfo` should always be used to get a transaction, except in extenuating circumstances.
@@ -430,44 +576,6 @@ func setRespWritten(r *http.Request) {
 // This is used to prevent double-write errors. See setRespWritten.
 func respWritten(r *http.Request) bool {
 	return r.Context().Value(APIRespWrittenKey) != nil
-}
-
-// TypeErrToAPIErr takes a slice of errors and an ApiErrorType, and converts them to the (userErr, sysErr, errCode) idiom used by the api package.
-func TypeErrsToAPIErr(errs []error, errType tc.ApiErrorType) (error, error, int) {
-	if len(errs) == 0 {
-		return nil, nil, http.StatusOK
-	}
-	switch errType {
-	case tc.SystemError:
-		return nil, util.JoinErrs(errs), http.StatusInternalServerError
-	case tc.DataConflictError:
-		return util.JoinErrs(errs), nil, http.StatusBadRequest
-	case tc.DataMissingError:
-		return util.JoinErrs(errs), nil, http.StatusNotFound
-	default:
-		log.Errorln("TypeErrsToAPIErr received unknown ApiErrorType from read: " + errType.String())
-		return nil, util.JoinErrs(errs), http.StatusInternalServerError
-	}
-}
-
-// TypeErrToAPIErr takes an error and an ApiErrorType, and converts them to the (userErr, sysErr, errCode) idiom used by the api package.
-func TypeErrToAPIErr(err error, errType tc.ApiErrorType) (error, error, int) {
-	if err == nil {
-		return nil, nil, http.StatusOK
-	}
-	switch errType {
-	case tc.SystemError:
-		return nil, err, http.StatusInternalServerError
-	case tc.DataConflictError:
-		return err, nil, http.StatusBadRequest
-	case tc.DataMissingError:
-		return err, nil, http.StatusNotFound
-	case tc.ForbiddenError:
-		return err, nil, http.StatusForbidden
-	default:
-		log.Errorln("TypeErrToAPIErr received unknown ApiErrorType from read: " + errType.String())
-		return nil, err, http.StatusInternalServerError
-	}
 }
 
 // small helper function to help with parsing below
@@ -539,7 +647,7 @@ func parseUniqueConstraint(err *pq.Error) (error, error, int) {
 // and user_role for examples.
 //
 func parseRestrictFKConstraint(err *pq.Error) (error, error, int) {
-	pattern := regexp.MustCompile(`update or delete on table "([a-z]+)" violates foreign key constraint ".+" on table "([a-z]+)"`)
+	pattern := regexp.MustCompile(`update or delete on table "([a-z_]+)" violates foreign key constraint ".+" on table "([a-z_]+)"`)
 	match := pattern.FindStringSubmatch(err.Message)
 	if match == nil {
 		return nil, nil, http.StatusOK

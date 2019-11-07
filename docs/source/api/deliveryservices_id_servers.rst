@@ -71,9 +71,9 @@ Response Structure
 :offlineReason:  A user-entered reason why the server is in ADMIN_DOWN or OFFLINE status (will be empty if not offline)
 :physLocation:   The name of the physical location at which the server resides
 :physLocationId: An integral, unique identifier for the physical location at which the server resides
-:profile:        The name of the profile assigned to this server
-:profileDesc:    A description of the profile assigned to this server
-:profileId:      An integral, unique identifier for the profile assigned to this server
+:profile:        The :ref:`profile-name` of the :term:`Profile` assigned to this server
+:profileDesc:    A :ref:`profile-description` of the :term:`Profile` assigned to this server
+:profileId:      The :ref:`profile-id` of the :term:`Profile` assigned to this server
 :rack:           A string indicating "rack" location
 :routerHostName: The human-readable name of the router
 :routerPortName: The human-readable name of the router port
@@ -151,5 +151,5 @@ Response Structure
 	]}
 
 
-.. [1] Users with the roles "admin" and/or "operations" will be able to the see servers associated with *any* :term:`Delivery Service`\ s, whereas any other user will only be able to see the servers associated with :term:`Delivery Service`\ s their Tenant is allowed to see.
+.. [1] Users with the roles "admin" and/or "operations" will be able to the see servers associated with *any* :term:`Delivery Services`, whereas any other user will only be able to see the servers associated with :term:`Delivery Services` their Tenant is allowed to see.
 .. [2] See `the Wikipedia article on Out-of-Band Management <https://en.wikipedia.org/wiki/Out-of-band_management>`_ for more information.

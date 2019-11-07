@@ -43,7 +43,7 @@ Response Structure
 ------------------
 :cachegroup:       The name of the Cache Group to which this server belongs
 :cdnName:          Name of the CDN to which the server belongs
-:deliveryservices: An array of integral, unique identifiers for :term:`Delivery Service`\ s to which this server belongs
+:deliveryservices: An array of integral, unique identifiers for :term:`Delivery Services` to which this server belongs
 :domainName:       The domain part of the server's Fully Qualified Domain Name (FQDN)
 :guid:             An identifier used to uniquely identify the server
 
@@ -67,8 +67,8 @@ Response Structure
 :ipNetmask:        The IPv4 subnet mask used by ``interfaceName``
 :offlineReason:    A user-entered reason why the server is in ADMIN_DOWN or OFFLINE status
 :physLocation:     The name of the physical location where the server resides
-:profile:          The name of the profile this server uses
-:profileDesc:      A description of the profile this server uses
+:profile:          The :ref:`profile-name` of the :term:`Profile` used by this server
+:profileDesc:      A :ref:`profile-description` of the :term:`Profile` used by this server
 :rack:             A string indicating "server rack" location
 :routerHostName:   The human-readable name of the router responsible for reaching this server
 :routerPortName:   The human-readable name of the port used by the router responsible for reaching this server

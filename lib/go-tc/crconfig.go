@@ -33,7 +33,7 @@ type CRConfig struct {
 }
 
 type CRConfigConfig struct {
-	APICacheControlMaxAge                      *string      `json:"api.cache-control.max_age,omitempty"`
+	APICacheControlMaxAge                      *string      `json:"api.cache-control.max-age,omitempty"`
 	ConsistentDNSRouting                       *string      `json:"consistent.dns.routing,omitempty"`
 	CoverageZonePollingIntervalSeconds         *string      `json:"coveragezone.polling.interval,omitempty"`
 	CoverageZonePollingURL                     *string      `json:"coveragezone.polling.url,omitempty"`
@@ -67,16 +67,17 @@ type CRConfigTTL struct {
 type CRConfigRouterStatus string
 
 type CRConfigRouter struct {
-	APIPort      *string               `json:"api.port,omitempty"`
-	FQDN         *string               `json:"fqdn,omitempty"`
-	HTTPSPort    *int                  `json:"httpsPort"`
-	HashCount    *int                  `json:"hashCount,omitempty"`
-	IP           *string               `json:"ip,omitempty"`
-	IP6          *string               `json:"ip6,omitempty"`
-	Location     *string               `json:"location,omitempty"`
-	Port         *int                  `json:"port,omitempty"`
-	Profile      *string               `json:"profile,omitempty"`
-	ServerStatus *CRConfigRouterStatus `json:"status,omitempty"`
+	APIPort       *string               `json:"api.port,omitempty"`
+	FQDN          *string               `json:"fqdn,omitempty"`
+	HTTPSPort     *int                  `json:"httpsPort"`
+	HashCount     *int                  `json:"hashCount,omitempty"`
+	IP            *string               `json:"ip,omitempty"`
+	IP6           *string               `json:"ip6,omitempty"`
+	Location      *string               `json:"location,omitempty"`
+	Port          *int                  `json:"port,omitempty"`
+	Profile       *string               `json:"profile,omitempty"`
+	SecureAPIPort *string               `json:"secure.api.port,omitempty"`
+	ServerStatus  *CRConfigRouterStatus `json:"status,omitempty"`
 }
 
 type CRConfigServerStatus string

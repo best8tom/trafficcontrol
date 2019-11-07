@@ -38,7 +38,7 @@ Glossary
 
 	Cache Group
 	Cache Groups
-		A group of caching HTTP proxy servers that together create a combined larger cache using consistent hashing. Traffic Router treats all servers in a :dfn:`Cache Group` as though they are in the  same :term:`Physical Location`, though they are in fact only in the same general area. A :dfn:`Cache Group` has one single set of geographical coordinates even if the :term:`cache server`\ s that make up the :dfn:`Cache Group` are actually in :term:`Physical Location`\ s. The :term:`cache server`\ s in a :dfn:`Cache Group` are not aware of the other :term:`cache server`\ s in the group - there is no clustering software or communications between :term:`cache server`\ s in a :dfn:`Cache Group`.
+		A group of caching HTTP proxy servers that together create a combined larger cache using consistent hashing. Traffic Router treats all servers in a :dfn:`Cache Group` as though they are in the  same :term:`Physical Location`, though they are in fact only in the same general area. A :dfn:`Cache Group` has one single set of geographical coordinates even if the :term:`cache servers` that make up the :dfn:`Cache Group` are actually in :term:`Physical Locations`. The :term:`cache servers` in a :dfn:`Cache Group` are not aware of the other :term:`cache servers` in the group - there is no clustering software or communications between :term:`cache servers` in a :dfn:`Cache Group`.
 
   		There are two basic types of :dfn:`Cache Groups`: EDGE_LOC and MID_LOC ("LOC" being short for "location" - a holdover from when :dfn:`Cache Groups` were called "Cache Locations). Traffic Control is a two-tiered system, where the clients get directed to the Edge-tier (EDGE_LOC) :dfn:`Cache Group`. On cache miss, the :term:`cache server` in the Edge-tier :dfn:`Cache Group` obtains content from a Mid-tier (MID_LOC) :dfn:`Cache Group`, rather than the origin, which is shared with multiple Edge-tier :dfn:`Cache Groups`. Edge-tier :dfn:`Cache Groups` are configured to have a single "parent" :dfn:`Cache Group`, but in general Mid-tier :dfn:`Cache Groups` have many "children".
 
@@ -106,7 +106,7 @@ Glossary
 
 	Delivery Service
 	Delivery Services
-		:dfn:`Delivery Services` are often referred to as a :term:`reverse proxy` "remap rule" that exists on Edge-tier :term:`cache servers`. In most cases, a :dfn:`Delivery Service` is a one-to-one mapping to an :abbr:`FQDN (Fully Qualified Domain Name)` that is used as a hostname to deliver the content. Many options and settings regarding how to optimize the content delivery exist, which are configurable on a :dfn:`Delivery Service` basis. Some examples of these :dfn:`Delivery Service`\ settings are:
+		:dfn:`Delivery Services` are often referred to as a :term:`reverse proxy` "remap rule" that exists on Edge-tier :term:`cache servers`. In most cases, a :dfn:`Delivery Service` is a one-to-one mapping to an :abbr:`FQDN (Fully Qualified Domain Name)` that is used as a hostname to deliver the content. Many options and settings regarding how to optimize the content delivery exist, which are configurable on a :dfn:`Delivery Service` basis. Some examples of these :dfn:`Delivery Service` settings are:
 
 		* Cache in RAM, cache on disk, or do not cache at all.
 		* Use DNS or HTTP Content routing.
@@ -118,6 +118,9 @@ Glossary
 		Since Traffic Control version 2.1, :dfn:`Delivery Services` can optionally be linked to a :term:`Profile`, and have :term:`Parameters` associated with them. One example of a feature that uses :dfn:`Delivery Service` :term:`Parameters` is the :ref:`ds-multi-site-origin` configuration. :dfn:`Delivery Services` are also for use in allowing multiple :term:`Tenants` to coexist in a Traffic Control CDN without interfering with each other, and to keep information about their content separated.
 
 		.. seealso:: See :ref:`delivery-services` for a more in-depth explanation of :dfn:`Delivery Services`.
+
+	Delivery Service required capabilities
+		:dfn:`Delivery Services required capabilities` are capabilities, which correlate to server capabilities, that are required in order to assign a server to a delivery service.`
 
 	Division
 	Divisions
@@ -141,7 +144,7 @@ Glossary
 
 	forward proxy
 	forward proxies
-		A forward proxy acts on behalf of the client such that the :term:`origin server` is (potentially) unaware of the proxy's existence. All Mid-tier :term:`cache server`\ s in a Traffic Control based CDN are :dfn:`forward proxies`. In a :dfn:`forward proxy` scenario, the client is explicitly configured to use the the proxy's IP address and port as a :dfn:`forward proxy`. The client always connects to the :dfn:`forward proxy` for content. The content provider does not have to change the URL the client obtains, and is (potentially) unaware of the proxy in the middle.
+		A forward proxy acts on behalf of the client such that the :term:`origin server` is (potentially) unaware of the proxy's existence. All Mid-tier :term:`cache servers` in a Traffic Control based CDN are :dfn:`forward proxies`. In a :dfn:`forward proxy` scenario, the client is explicitly configured to use the the proxy's IP address and port as a :dfn:`forward proxy`. The client always connects to the :dfn:`forward proxy` for content. The content provider does not have to change the URL the client obtains, and is (potentially) unaware of the proxy in the middle.
 
 		..  seealso:: `ATS documentation on forward proxy <https://docs.trafficserver.apache.org/en/latest/admin/forward-proxy.en.html>`_.
 
@@ -245,11 +248,15 @@ Glossary
 		The source of content for the CDN. Usually a redundant HTTP/1.1 webserver.
 
 	ORT
-		The "Operational Readiness Test" script that stitches the configuration configured in Traffic Portal and generated by Traffic Ops into the :term:`cache server`\ s. See :ref:`traffic-ops-ort` for more information.
+		The "Operational Readiness Test" script that stitches the configuration configured in Traffic Portal and generated by Traffic Ops into the :term:`cache servers`.
+
+		.. seealso:: See :ref:`traffic-ops-ort` for a Python implementation of ORT that is (theoretically) compatible with the one actually provided in Apache Traffic Control releases.
 
 	Parameter
 	Parameters
-		Typically refers to a line in a configuration file, but in practice can represent any arbitrary configuration option
+		Typically refers to a line in a configuration file, but in practice can represent any arbitrary configuration option.
+
+		.. seealso:: The :ref:`profiles-and-parameters` overview section.
 
 	parent
 	parents
@@ -257,79 +264,15 @@ Glossary
 
 	Physical Location
 	Physical Locations
-		A pair of geographic coordinates (latitude and longitude) that is used by :term:`Cache Group`\ s to define their location. This information is used by Traffic Router to route client traffic to the geographically nearest :term:`Cache Group`.
+		A pair of geographic coordinates (latitude and longitude) that is used by :term:`Cache Groups` to define their location. This information is used by Traffic Router to route client traffic to the geographically nearest :term:`Cache Group`.
 
 	Profile
 	Profiles
-		A :dfn:`Profile` is, most generally, a group of :term:`Parameter`\ s that will be applied to a server. :dfn:`Profiles` are typically re-used by all Edge-Tier :term:`cache server`\ s within a CDN or :term:`Cache Group`. A :dfn:`Profile` will, in addition to configuration :term:`Parameter`\ s, define the CDN to which a server belongs and the "Type" of the profile - which determines some behaviors of Traffic Control components. The allowed "Types" of :dfn:`Profiles` are **not** the same as :term:`Type`\ s, and are maintained as a PostgreSQL "Enum" in :file:`traffic_ops/app/db/migrations/20170205101432_cdn_table_domain_name.go`. The only allowed values are:
-
-		UNK_PROFILE
-			A catch-all type that can be assigned to anything without imbuing it with any special meaning or behavior
-		TR_PROFILE
-			A Traffic Router Profile.
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* begin with ``CCR_`` or ``TR_``. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
-		TM_PROFILE
-			A Traffic Monitor Profile.
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* begin with ``RASCAL_`` or ``TM_``. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
-		TS_PROFILE
-			A Traffic Stats Profile
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* be ``TRAFFIC_STATS``. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
-		TP_PROFILE
-			A Traffic Portal Profile
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* begin with ``TRAFFIC_PORTAL``. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
-		INFLUXDB_PROFILE
-			A Profile used with `InfluxDB <https://www.influxdata.com/>`_, which is used by Traffic Stats.
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* begin with ``INFLUXDB``. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
-		RIAK_PROFILE
-			A Profile used for each `Riak <http://basho.com/products/riak-kv/>`_ server in a Traffic Stats cluster.
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* begin with ``RIAK``. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
-		SPLUNK_PROFILE
-
-			A Profile meant to be used with `Splunk <https://www.splunk.com/>`_ servers.
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* begin with ``SPLUNK``. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
-		ORG_PROFILE
-			Origin Profile.
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* begin with ``MSO``, or contain either ``ORG`` or ``ORIGIN`` anywhere in the name. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
-		KAFKA_PROFILE
-			A Profile for `Kafka <https://kafka.apache.org/>`_ servers.
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* begin with ``KAFKA``. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
-		LOGSTASH_PROFILE
-			A Profile for `Logstash <https://www.elastic.co/products/logstash>`_ servers.
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* begin with ``LOGSTASH_``. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
-		ES_PROFILE
-			A Profile for `ElasticSearch <https://www.elastic.co/products/elasticsearch>`_ servers.
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* begin with ``ELASTICSEARCH``. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
-		ATS_PROFILE
-			A Profile that can be used with either an Edge-tier or Mid-tier :term:`cache server` (but not both, in general).
-
-			.. warning:: For legacy reasons, the names of Profiles of this type *must* begin with ``EDGE`` or ``MID``. This is **not** enforced by the :ref:`to-api` or Traffic Portal, but certain Traffic Control operations/components expect this and will fail to work otherwise!
-
+		A :dfn:`Profile` is, most generally, a group of :term:`Parameters` that will be applied to a server. :dfn:`Profiles` are typically re-used by all :term:`Edge-Tier cache servers` within a CDN or :term:`Cache Group`. A :dfn:`Profile` will, in addition to configuration :term:`Parameters`, define the CDN to which a server belongs and the :ref:`"Type" <profile-type>` of the Profile - which determines some behaviors of Traffic Control components. The allowed :ref:`"Types" <profile-type>` of :dfn:`Profiles` are **not** the same as :term:`Types`, and are maintained as a PostgreSQL "Enum" in :atc-file:`traffic_ops/app/db/create_tables.sql`.
 
 		.. tip:: A :dfn:`Profile` of the wrong type assigned to a Traffic Control component *will* (in general) cause it to function incorrectly, regardless of the :term:`Parameters` assigned to it.
 
-		.. danger:: Nearly all of these :dfn:`Profile` types have strict naming requirements, and it may be noted that some of said requirements are prefixes ending with ``_``, while others are either not prefixes or do not end with ``_``. This is exactly true; some requirements **need** that ``_`` and some may or may not have it. It is our suggestion, therefore, that for the time being all prefixes use the ``_`` notation to separate words, so as to avoid causing headaches remembering when that matters and when it does not.
+		.. seealso:: The :ref:`profiles-and-parameters` overview section.
 
 	Queue
 	Queue Updates
@@ -342,19 +285,19 @@ Glossary
 
 		That seems like a vague difference because it is - in general the rule to follow is that changes to :term:`Profiles` and :term:`Parameters` requires only updates be queued, changes to the assignments of :term:`cache servers` to :term:`Delivery Services` requires both a :term:`Snapshot` *and* a :dfn:`Queue Updates`, and changes to only a :term:`Delivery Service` itself (usually) entails a :term:`Snapshot` only. These aren't exhaustive rules, and a grasp of what changes require which action(s) will take time to form. In general, when doing both :dfn:`Queuing Updates` as well as taking a CDN :term:`Snapshot`, it is advisable to first :dfn:`Queue Updates` and *then* take the :term:`Snapshot`, as otherwise Traffic Router may route clients to :term:`Edge-tier cache servers` that are not equipped to service their request(s). However, when modifying the assignment(s) of :term:`cache servers` to one or more :term:`Delivery Services`, a :term:`Snapshot` ought to be taken before updates are queued.
 
-		.. warning:: Updates to :term:`Parameters` with certain "configFile" values may require running :term:`ORT` in a different mode, occasionally manually. Though the server may appear to no longer have pending updates in these cases, until this manual intervention is performed the configuration *will* **not** *be correct*.
+		.. warning:: Updates to :term:`Parameters` with certain :ref:`parameter-config-file` values may require running :term:`ORT` in a different mode, occasionally manually. Though the server may appear to no longer have pending updates in these cases, until this manual intervention is performed the configuration *will* **not** *be correct*.
 
 	Region
 	Regions
-		A group of :term:`Physical Location`\ s.
+		A group of :term:`Physical Locations`.
 
 	reverse proxy
 	reverse proxies
-		A :dfn:`reverse proxy` acts on behalf of the :term:`origin server` such that the client is (potentially) unaware it is not communicating directly with the :term:`origin`. All Edge-tier :term:`cache server`\ s in a Traffic Control CDN are :dfn:`reverse proxies`. To the end user a Traffic Control-based CDN appears as a :dfn:`reverse proxy` since it retrieves content from the :term:`origin server`, acting on behalf of that :term:`origin server`. The client requests a URL that has a hostname which resolves to the :dfn:`reverse proxy`'s IP address and, in compliance with the HTTP 1.1 specification (:rfc:`2616`), the client sends a ``Host:`` header to the :dfn:`reverse proxy` that matches the hostname in the URL. The proxy looks up this hostname in a list of mappings to find the :term:`origin` hostname; if the hostname of the ``Host:`` header is not found in the list, the proxy will send an error (usually either ``404 Not Found`` or ``503 Service Unavailable`` as appropriate) to the client. If the supplied hostname is found in this list of mappings, the proxy checks its cache, and when the content is not already present, connects to the :term:`origin` to which the requested ``Host:`` maps requests the path of the original URL, providing the :term:`origin` hostname in the ``Host`` header. The proxy then stores the URL in its cache and serves the contents to the client. When there are subsequent requests for the same URL, a caching proxy serves the content out of its cache - provided :ref:`cache-revalidation` are satisfied - thereby reducing latency and network traffic.
+		A :dfn:`reverse proxy` acts on behalf of the :term:`origin server` such that the client is (potentially) unaware it is not communicating directly with the :term:`origin`. All Edge-tier :term:`cache servers` in a Traffic Control CDN are :dfn:`reverse proxies`. To the end user a Traffic Control-based CDN appears as a :dfn:`reverse proxy` since it retrieves content from the :term:`origin server`, acting on behalf of that :term:`origin server`. The client requests a URL that has a hostname which resolves to the :dfn:`reverse proxy`'s IP address and, in compliance with the HTTP 1.1 specification (:rfc:`2616`), the client sends a ``Host:`` header to the :dfn:`reverse proxy` that matches the hostname in the URL. The proxy looks up this hostname in a list of mappings to find the :term:`origin` hostname; if the hostname of the ``Host:`` header is not found in the list, the proxy will send an error (usually either ``404 Not Found`` or ``503 Service Unavailable`` as appropriate) to the client. If the supplied hostname is found in this list of mappings, the proxy checks its cache, and when the content is not already present, connects to the :term:`origin` to which the requested ``Host:`` maps requests the path of the original URL, providing the :term:`origin` hostname in the ``Host`` header. The proxy then stores the URL in its cache and serves the contents to the client. When there are subsequent requests for the same URL, a caching proxy serves the content out of its cache - provided :ref:`cache-revalidation` are satisfied - thereby reducing latency and network traffic.
 
 		.. seealso:: `The Apache Traffic Server documentation on reverse proxy <https://docs.trafficserver.apache.org/en/latest/admin/reverse-proxy-http-redirects.en.html#http-reverse-proxy>`_.
 
-		To insert a :dfn:`reverse proxy` into a typical HTTP 1.1 request and response flow, the :dfn:`reverse proxy` needs to be told where the :term:`origin server` can be reached (and which :term:`origin` to use for a given request when it's configured to proxy requests for multiple :term:`origin`\ s). In :abbr:`ATS (Apache Traffic Server)` this is handled by adding rules to `the remap.config configuration file <https://docs.trafficserver.apache.org/en/latest/admin-guide/files/remap.config.en.html>`_. The content owner must inform the clients, by updating the URL, to receive the content from the cache and not from the :term:`origin server` directly. For example, clients might be instructed to request content from ``http://www-origin-cache.cdn.com`` which points to a :dfn:`reverse proxy` for the actual :term:`origin` located at ``http://www.origin.com``.
+		To insert a :dfn:`reverse proxy` into a typical HTTP 1.1 request and response flow, the :dfn:`reverse proxy` needs to be told where the :term:`origin server` can be reached (and which :term:`origin` to use for a given request when it's configured to proxy requests for multiple :term:`origins`). In :abbr:`ATS (Apache Traffic Server)` this is handled by adding rules to `the remap.config configuration file <https://docs.trafficserver.apache.org/en/latest/admin-guide/files/remap.config.en.html>`_. The content owner must inform the clients, by updating the URL, to receive the content from the cache and not from the :term:`origin server` directly. For example, clients might be instructed to request content from ``http://www-origin-cache.cdn.com`` which points to a :dfn:`reverse proxy` for the actual :term:`origin` located at ``http://www.origin.com``.
 
 		Now, if the client requests ``/foo/bar/fun.html`` from the :dfn:`reverse proxy` the sequence of events is as follows. is given the URL ``http://www-origin-cache.cdn.com/foo/bar/fun.html`` (note the different hostname) and when attempting to obtain that URL, the following occurs:
 
@@ -438,6 +381,8 @@ Glossary
 
 	Snapshot
 	Snapshots
+	CDN Snapshot
+	CDN Snapshots
 		Previously called a "CRConfig" or "CRConfig.json" (and still called such in many places), this is a rather large set of routing information generated from a CDN's configuration and topology.
 
 	Status
@@ -446,7 +391,9 @@ Glossary
 
 	Tenant
 	Tenants
-		Users are grouped into :dfn:`Tenants` (or :dfn:`Tenancies`) to segregate ownership of and permissions over :term:`Delivery Service`\ s and their resources. To be clear, the notion of :dfn:`Tenancy` **only** applies within the context of :term:`Delivery Service`\ s and does **not** apply permissions restrictions to any other aspect of Traffic Control.
+	Tenancy
+	Tenancies
+		Users are grouped into :dfn:`Tenants` (or :dfn:`Tenancies`) to segregate ownership of and permissions over :term:`Delivery Services` and their resources. To be clear, the notion of :dfn:`Tenancy` **only** applies within the context of :term:`Delivery Services` and does **not** apply permissions restrictions to any other aspect of Traffic Control.
 
 	Type
 	Types

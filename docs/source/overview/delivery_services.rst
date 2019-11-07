@@ -18,15 +18,19 @@
 *****************
 Delivery Services
 *****************
-"Delivery Services" are a very important construct in :abbr:`ATC (Apache Traffic Control)`. At their most basic, they are a source of content and a set of :term:`cache server`\ s and configuration options used to distribute that content.
+"Delivery Services" are a very important construct in :abbr:`ATC (Apache Traffic Control)`. At their most basic, they are a source of content and a set of :term:`cache servers` and configuration options used to distribute that content.
 
 Delivery Services are modeled several times over, in the Traffic Ops database, in Traffic Portal forms and tables, in the legacy Perl Traffic Ops codebase, and several times for various :ref:`to-api` versions in the new Go Traffic Ops codebase. Go-specific data structures can be found in `the project's GoDoc documentation <https://godoc.org/github.com/apache/trafficcontrol/lib/go-tc#DeliveryServiceNullableV11>`_. Rather than application-specific definitions, what follows is an attempt at consolidating all of the different properties and names of properties of Delivery Service objects throughout the :abbr:`ATC (Apache Traffic Control)` suite. The names of these fields are typically chosen as the most human-readable and/or most commonly-used names for the fields, and when reading please note that in many cases these names will appear camelCased or snake_cased to be machine-readable. Any aliases of these fields that are not merely case transformations of the indicated, canonical names will be noted in a table of aliases.
 
 .. seealso:: The API reference for Delivery Service-related endpoints such as :ref:`to-api-deliveryservices` contains definitions of the Delivery Service object(s) returned and/or accepted by those endpoints.
 
+.. _ds-active:
+
 Active
 ------
 Whether or not this Delivery Service is active on the CDN and can be served. When a Delivery Service is not "active", Traffic Router will not be made aware of its existence - i.e. it will not appear in CDN :term:`Snapshots`. Setting a Delivery Service to be "active" (or "inactive") will require that a new :term:`Snapshot` be taken.
+
+.. _ds-anonymous-blocking:
 
 Anonymous Blocking
 ------------------
@@ -45,6 +49,8 @@ Enables/Disables blocking of anonymized IP address - proxies, :abbr:`TOR (The On
 
 .. seealso:: The :ref:`anonymous_blocking-qht` "Quick-How-To" guide.
 
+.. _ds-cacheurl:
+
 Cache URL Expression
 --------------------
 .. deprecated:: 3.0
@@ -52,11 +58,15 @@ Cache URL Expression
 
 Manipulates the cache key of the incoming requests. Normally, the cache key is the :term:`origin` domain. This can be changed so that multiple services can share a cache key, can also be used to preserve cached content if service origin is changed.
 
-.. warning:: This field provides access to a feature that was only present in :abbr:`ATS (Apache Traffic Server)` 6.X and earlier. As :term:`cache server`\ s must now use :abbr:`ATS (Apache Traffic Server)` 7.1.X, this field **must** be blank unless all :term:`cache servers` can be guaranteed to use that older :abbr:`ATS (Apache Traffic Server)` version (**NOT** recommended).
+.. warning:: This field provides access to a feature that was only present in :abbr:`ATS (Apache Traffic Server)` 6.X and earlier. As :term:`cache servers` must now use :abbr:`ATS (Apache Traffic Server)` 7.1.X, this field **must** be blank unless all :term:`cache servers` can be guaranteed to use that older :abbr:`ATS (Apache Traffic Server)` version (**NOT** recommended).
+
+.. _ds-cdn:
 
 CDN
 ---
 A CDN to which this Delivery Service belongs. Only :term:`cache servers` within this CDN are available to route content for this Delivery Service. Additionally, only Traffic Routers assigned to this CDN will perform said routing. Most often ``cdn``/``CDN`` refers to the *name* of the CDN to which the Delivery Service belongs, but occasionally (most notably in the payloads and/or query parameters of certain :ref:`to-api` endpoints) it actually refers to the *integral, unique identifier* of said CDN.
+
+.. _ds-check-path:
 
 Check Path
 ----------
@@ -107,9 +117,13 @@ NEVER
 
 .. impl-detail:: Traffic Ops and Traffic Ops client Go code use an empty string as the name of the enumeration member that represents "NEVER".
 
+.. _ds-display-name:
+
 Display Name
 ------------
 The "name" of the Delivery Service. Since nearly any use of a string-based identification method for Delivery Services (e.g. in Traffic Portal tables) uses xml_id_, this is of limited use. For that reason and for consistency's sake it is suggested that this be the same as the xml_id_. However, unlike the xml_id_, this can contain any UTF-8 characters without restriction.
+
+.. _ds-dns-bypass-cname:
 
 DNS Bypass CNAME
 ----------------
@@ -117,9 +131,13 @@ When the limits placed on this Delivery Service by the `Global Max Mbps`_ and/or
 
 .. note:: IPv6 traffic will be redirected if and only if `IPv6 Routing Enabled`_ is "true" for this Delivery Service.
 
+.. _ds-dns-bypass-ip:
+
 DNS Bypass IP
 -------------
 When the limits placed on this Delivery Service by the `Global Max Mbps`_ and/or `Global Max Tps`_ are exceeded, a DNS-:ref:`Routed <ds-types>` Delivery Service will direct excess IPv4 traffic to this IPv4 address.
+
+.. _ds-dns-bypass-ipv6:
 
 DNS Bypass IPv6
 ---------------
@@ -127,9 +145,13 @@ When the limits placed on this Delivery Service by the `Global Max Mbps`_ and/or
 
 .. note:: This requires an accompanying configuration of `IPv6 Routing Enabled`_ such that IPv6 traffic is allowed at all.
 
+.. _ds-dns-bypass-ttl:
+
 DNS Bypass TTL
 --------------
 When the limits placed on this Delivery Service by the `Global Max Mbps`_ and/or `Global Max Tps`_ are exceeded, a DNS-:ref:`Routed <ds-types>` Delivery Service will direct excess traffic to their `DNS Bypass IP`_, `DNS Bypass IPv6`_, or `DNS Bypass CNAME`_.
+
+.. _ds-dns-ttl:
 
 DNS TTL
 -------
@@ -159,17 +181,44 @@ The :abbr:`DSCP (Differentiated Services Code Point)` which will be used to mark
 
 .. impl-detail:: DSCP settings only apply on :term:`cache servers` that run :abbr:`Apache Traffic Server`. The implementation uses the `ATS Header Rewrite Plugin <https://docs.trafficserver.apache.org/en/7.1.x/admin-guide/plugins/header_rewrite.en.html>`_ to create a rule that will mark traffic bound outward from the CDN to the client.
 
+.. _ds-edge-header-rw-rules:
+
 Edge Header Rewrite Rules
 -------------------------
-This field in general contains the contents of the a configuration file used by the `ATS Header Rewrite Plugin <https://docs.trafficserver.apache.org/en/7.1.x/admin-guide/plugins/header_rewrite.en.html>`_ when serving content for this Delivery Service - on :term:`Edge-tier cache server`\ s.
+This field in general contains the contents of the a configuration file used by the `ATS Header Rewrite Plugin <https://docs.trafficserver.apache.org/en/7.1.x/admin-guide/plugins/header_rewrite.en.html>`_ when serving content for this Delivery Service - on :term:`Edge-tier cache servers`.
 
 .. tip:: Because this ultimately is the contents of an :abbr:`ATS (Apache Traffic Server)` configuration file, it can make use of the :ref:`ort-special-strings`.
+
+.. _ds-example-urls:
+
+Example URLs
+------------
+The Example URLs of a Delivery Service are the scheme/host specifications that clients can use to request content through it. These are determined by Traffic Ops from the Delivery Service's configuration, and are read-only in virtually every context. The only reason a Delivery Service should ever have no Example URLs is if it is an ANY_MAP-`Type`_ Delivery Service (since they are not routed). For example, a Delivery Service that can deliver HTTP and HTTPS content, has a `Routing Name`_ of "cdn", an `xml_id`_ of "demo1", and belonging to a `CDN`_ that is authoritative for the `mycdn.ciab.test` domain would have two Example URLs:
+
+- `https://cdn.demo1.mycdn.ciab.test`
+- `http://cdn.demo1.mycdn.ciab.test`
+
+Note that these are irrespective of request path; meaning a client can request e.g. `https://cdn.demo1.mycdn.ciab.test/index.html` through this Delivery Service.
+
+.. warning:: This list does not consider any `Static DNS Entries`_ configured on the Delivery Service, those are
+
+.. table:: Aliases
+
+	+-----------------------+----------------------+-----------------------------+
+	| Name                  | Use(s)               | Type(s)                     |
+	+=======================+======================+=============================+
+	| Delivery Service URLs | Traffic Portal forms | unchanged (list of strings) |
+	+-----------------------+----------------------+-----------------------------+
+
+.. _ds-fqpr:
 
 Fair-Queuing Pacing Rate Bps
 ----------------------------
 The maximum bytes per second a :term:`cache server` will deliver on any single TCP connection. This uses the Linux kernel’s Fair-Queuing :manpage:`setsockopt(2)` (``SO_MAX_PACING_RATE``) to limit the rate of delivery. Traffic exceeding this speed will only be rate-limited and not diverted. This option requires extra configuration on all :term:`cache servers` assigned to this Delivery Service - specifically, the line ``net.core.default_qdisc = fq`` must exist in :file:`/etc/sysctl.conf`.
 
 .. seealso:: :manpage:`tc-fq_codel(8)`
+
+.. seealso:: This is implemented using the `ATS fq_pacing plign <https://docs.trafficserver.apache.org/en/7.1.x/admin-guide/plugins/fq_pacing.en.html>`_.
 
 .. table:: Aliases
 
@@ -178,6 +227,8 @@ The maximum bytes per second a :term:`cache server` will deliver on any single T
 	+==============+=================================================================================+=======================================+
 	| FQPacingRate | Traffic Ops source code, Delivery Service objects returned by the :ref:`to-api` | unchanged (``int``, ``integer`` etc.) |
 	+--------------+---------------------------------------------------------------------------------+---------------------------------------+
+
+.. _ds-geo-limit:
 
 Geo Limit
 ---------
@@ -201,7 +252,9 @@ Limits access to a Delivery Service by geographic location. The only practical d
 	|                  |                                                                           | address is found in the :term:`Coverage Zone File`                                             |
 	+------------------+---------------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
 
-.. danger:: Geographic access limiting is **not** sufficient to guarantee access is properly restricted. The limiting is implemented by Traffic Router, which means that direct requests to :term:`Edge-tier cache server`\ s will bypass it entirely.
+.. danger:: Geographic access limiting is **not** sufficient to guarantee access is properly restricted. The limiting is implemented by Traffic Router, which means that direct requests to :term:`Edge-tier cache servers` will bypass it entirely.
+
+.. _ds-geo-limit-countries:
 
 Geo Limit Countries
 -------------------
@@ -215,6 +268,8 @@ When `Geo Limit`_ is being used with this Delivery Service (and is set to exactl
 	| geoEnabled       | In CDN :term:`Snapshot` structures, especially in :ref:`to-api` responses | An array of objects each having the key "countryCode" that is a string containing an allowed   |
 	|                  |                                                                           | country code - one should exist for each allowed country code                                  |
 	+------------------+---------------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
+
+.. _ds-geo-limit-redirect-url:
 
 Geo Limit Redirect URL
 ----------------------
@@ -264,6 +319,8 @@ This is nearly always the integral, unique identifier of a provider for a databa
 	| geoProvider | Traffic Ops and Traffic Ops client code, :ref:`to-api` requests and responses | unchanged (integral, unique identifier) |
 	+-------------+-------------------------------------------------------------------------------+-----------------------------------------+
 
+.. _ds-geo-miss-default-latitude:
+
 Geo Miss Default Latitude
 -------------------------
 Default Latitude for this Delivery Service. When the geographic location of the client cannot be determined, they will be routed as if they were at this latitude.
@@ -275,6 +332,8 @@ Default Latitude for this Delivery Service. When the geographic location of the 
 	+=========+========================================================+=====================+
 	| missLat | In :ref:`to-api` responses and Traffic Ops source code | unchanged (numeric) |
 	+---------+--------------------------------------------------------+---------------------+
+
+.. _ds-geo-miss-default-longitude:
 
 Geo Miss Default Longitude
 --------------------------
@@ -288,9 +347,11 @@ Default Longitude for this Delivery Service. When the geographic location of the
 	| missLong | In :ref:`to-api` responses and Traffic Ops source code | unchanged (numeric) |
 	+----------+--------------------------------------------------------+---------------------+
 
+.. _ds-global-max-mbps:
+
 Global Max Mbps
 ---------------
-The maximum :abbr:`Mbps (Megabits per second)` this Delivery Service can serve across all :term:`Edge-tier cache server`\ s before traffic will be diverted to the bypass destination. For a DNS-:ref:`Routed <ds-types>` Delivery Service, the `DNS Bypass IP`_ or `DNS Bypass IPv6`_ will be used (depending on whether this was a A or AAAA request), and for HTTP-:ref:`Routed <ds-types>` Delivery Services the `HTTP Bypass FQDN`_ will be used.
+The maximum :abbr:`Mbps (Megabits per second)` this Delivery Service can serve across all :term:`Edge-tier cache servers` before traffic will be diverted to the bypass destination. For a DNS-:ref:`Routed <ds-types>` Delivery Service, the `DNS Bypass IP`_ or `DNS Bypass IPv6`_ will be used (depending on whether this was a A or AAAA request), and for HTTP-:ref:`Routed <ds-types>` Delivery Services the `HTTP Bypass FQDN`_ will be used.
 
 .. table:: Aliases
 
@@ -300,9 +361,11 @@ The maximum :abbr:`Mbps (Megabits per second)` this Delivery Service can serve a
 	| totalKbpsThreshold | In :ref:`to-api` responses - most notably :ref:`to-api-cdns-name-configs-monitoring` | unchanged (numeric), but converted from :abbr:`Mbps (Megabits per second)` to :abbr:`Kbps (kilobits per second)` |
 	+--------------------+--------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+
 
+.. _ds-global-max-tps:
+
 Global Max TPS
 --------------
-The maximum :abbr:`TPS (Transactions per Second)` this Delivery Service can serve across all :term:`Edge-tier cache server`\ s before traffic will be diverted to the bypass destination. For a DNS-:ref:`Routed <ds-types>` Delivery Service, the `DNS Bypass IP`_ or `DNS Bypass IPv6`_ will be used (depending on whether this was a A or AAAA request), and for HTTP-:ref:`Routed <ds-types>` Delivery Services the `HTTP Bypass FQDN`_ will be used.
+The maximum :abbr:`TPS (Transactions per Second)` this Delivery Service can serve across all :term:`Edge-tier cache servers` before traffic will be diverted to the bypass destination. For a DNS-:ref:`Routed <ds-types>` Delivery Service, the `DNS Bypass IP`_ or `DNS Bypass IPv6`_ will be used (depending on whether this was a A or AAAA request), and for HTTP-:ref:`Routed <ds-types>` Delivery Services the `HTTP Bypass FQDN`_ will be used.
 
 .. table:: Aliases
 
@@ -312,13 +375,19 @@ The maximum :abbr:`TPS (Transactions per Second)` this Delivery Service can serv
 	| totalTpsThreshold | In :ref:`to-api` responses - most notably :ref:`to-api-cdns-name-configs-monitoring` | unchanged (numeric) |
 	+-------------------+--------------------------------------------------------------------------------------+---------------------+
 
+.. _ds-http-bypass-fqdn:
+
 HTTP Bypass FQDN
 ----------------
 When the limits placed on this Delivery Service by the `Global Max Mbps`_ and/or `Global Max Tps`_ are exceeded, an HTTP-:ref:`Routed <ds-types>` Delivery Service will direct excess traffic to this :abbr:`Fully Qualified Domain Name`.
 
+.. _ds-ipv6-routing:
+
 IPv6 Routing Enabled
 --------------------
 A boolean value that controls whether or not clients using IPv6 can be routed to this Delivery Service by Traffic Router. When creating a Delivery Service in Traffic Portal, this will default to "true".
+
+.. _ds-info-url:
 
 Info URL
 --------
@@ -330,11 +399,15 @@ Initial Dispersion
 ------------------
 The number of :term:`Edge-tier cache servers` across which a particular asset will be distributed within each :term:`Cache Group`. For most use-cases, this should be 1, meaning that all clients requesting a particular asset will be directed to 1 :term:`cache server` per :term:`Cache Group`. Depending on the popularity and size of assets, consider increasing this number in order to spread the request load across more than 1 :term:`cache server`. The larger this number, the more copies of a particular asset are stored in a :term:`Cache Group`, which can "pollute" caches (if load distribution is unnecessary) and decreases caching efficiency (due to cache misses if the asset is not requested enough to stay "fresh" in all the caches).
 
+.. _ds-logs-enabled:
+
 Logs Enabled
 ------------
 A boolean switch that can be toggled to enable/disable logging for a Delivery Service.
 
 .. note:: This doesn't actually do anything. It was part of the functionality for a planned Traffic Control component named "Traffic Logs" - which was never created.
+
+.. _ds-longdesc:
 
 Long Description
 ----------------
@@ -348,6 +421,8 @@ Free text field that has no strictly defined purpose, but it is suggested that i
 	| longDesc | Traffic Control source code and :ref:`to-api` responses | unchanged (``string``, ``String`` etc.) |
 	+----------+---------------------------------------------------------+-----------------------------------------+
 
+.. _ds-longdesc2:
+
 Long Description 2
 ------------------
 Free text field that has no strictly defined purpose.
@@ -360,6 +435,8 @@ Free text field that has no strictly defined purpose.
 	| longDesc1\ [#cardinality]_ | Traffic Control source code and :ref:`to-api` responses | unchanged (``string``, ``String`` etc.) |
 	+----------------------------+---------------------------------------------------------+-----------------------------------------+
 
+.. _ds-longdesc3:
+
 Long Description 3
 ------------------
 Free text field that has no strictly defined purpose.
@@ -371,6 +448,8 @@ Free text field that has no strictly defined purpose.
 	+============================+=========================================================+=========================================+
 	| longDesc2\ [#cardinality]_ | Traffic Control source code and :ref:`to-api` responses | unchanged (``string``, ``String`` etc.) |
 	+----------------------------+---------------------------------------------------------+-----------------------------------------+
+
+.. _ds-matchlist:
 
 Match List
 ----------
@@ -395,15 +474,27 @@ STEERING_REGEXP
 	| deliveryservice_regex | Traffic Ops database | unique, integral identifier for a regular expression |
 	+-----------------------+----------------------+------------------------------------------------------+
 
+.. _ds-max-dns-answers:
+
 Max DNS Answers
 ---------------
 The maximum number of :term:`Edge-tier cache server` IP addresses that the Traffic Router will include in responses to DNS requests for DNS-:ref:`Routed <ds-types>` Delivery Services. The :ref:`to-api` restricts this value to the range [1, 15], but no matching restraints are placed on the actual data as stored in the Traffic Ops Database. When provided, the :term:`cache server` IP addresses included are rotated in each response to spread traffic evenly. This number should scale according to the amount of traffic the Delivery Service is expected to serve.
+
+.. _ds-max-origin-connections:
+
+Max Origin Connections
+----------------------
+The maximum number of TCP connections individual :term:`Mid-tier cache servers` are allowed to make to the `Origin Server Base URL`. A value of ``0`` in this field indicates that there is no maximum.
+
+.. _ds-mid-header-rw-rules:
 
 Mid Header Rewrite Rules
 ------------------------
 This field in general contains the contents of the a configuration file used by the `ATS Header Rewrite Plugin <https://docs.trafficserver.apache.org/en/7.1.x/admin-guide/plugins/header_rewrite.en.html>`_ when serving content for this Delivery Service - on :term:`Mid-tier cache servers`.
 
 .. tip:: Because this ultimately is the contents of an :abbr:`ATS (Apache Traffic Server)` configuration file, it can make use of the :ref:`ort-special-strings`.
+
+.. _ds-origin-url:
 
 Origin Server Base URL
 ----------------------
@@ -417,13 +508,17 @@ The Origin Server’s base URL which includes the protocol (http or https). Exam
 	| orgServerFqdn | :ref:`to-api` responses and in Traffic Control source code | unchanged (usually ``str``, ``string`` etc.) |
 	+---------------+------------------------------------------------------------+----------------------------------------------+
 
+.. _ds-origin-shield:
+
 Origin Shield
 -------------
 An experimental feature that allows administrators to list additional forward proxies that sit between the :term:`Mid-tier` and the :term:`origin`. In most scenarios, this is represented (and required to be input) as a pipe (``|``)-delimited string.
 
+.. _ds-profile:
+
 Profile
 -------
-Either the name of a :term:`Profile` used by this Delivery Service, or an integral, unique identifier for said :term:`Profile`.
+Either the :ref:`profile-name` of a :term:`Profile` used by this Delivery Service, or the :ref:`profile-id` of said :term:`Profile`.
 
 .. table:: Aliases
 
@@ -434,6 +529,8 @@ Either the name of a :term:`Profile` used by this Delivery Service, or an integr
 	+-------------+------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------+
 	| profileName | In Traffic Control source code and some :ref:`to-api` responses dealing with Delivery Services | Unlike the more general "Profile", this is *always* a name (``str``, ``string``, etc.) |
 	+-------------+------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+
+.. _ds-protocol:
 
 Protocol
 --------
@@ -458,7 +555,7 @@ The protocol with which to serve content from this Delivery Service. This define
 	+----------+-------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 	| Name     | Use(s)                  | Type(s)                                                                                                                                                             |
 	+==========+=========================+=====================================================================================================================================================================+
-	| Protocol | CDN :term:`Snapshot`\ s | An object containing the key ``"acceptHttps"`` that is a string containing a boolean that expresses whether Traffic Router should accept HTTPS requests for this    |
+	| Protocol | CDN :term:`Snapshots` | An object containing the key ``"acceptHttps"`` that is a string containing a boolean that expresses whether Traffic Router should accept HTTPS requests for this      |
 	|          |                         | Delivery Service, and the key ``"redirectToHttps"`` that is also a string containing a boolean which expresses whether or not Traffic Router should redirect HTTP   |
 	|          |                         | requests to HTTPS URLs. Optionally, the key ``"acceptHttp"`` may also appear, once again a string containing a boolean that expresses whether or not Traffic Router |
 	|          |                         | should accept unsecured HTTP requests - this is implicitly treated as ``"true"`` by Traffic Router when it is not present.                                          |
@@ -468,12 +565,12 @@ The protocol with which to serve content from this Delivery Service. This define
 
 Query String Handling
 ---------------------
-Describes how query strings should be handled by the :term:`Edge-tier cache server`\ s when serving content for this Delivery Service. This is nearly always expressed as an integral, unique identifier for each behavior, though in Traffic Portal a more descriptive value is typically used, or at least provided in addition to the integral, unique identifier. The allowed values and their meanings are:
+Describes how query strings should be handled by the :term:`Edge-tier cache servers` when serving content for this Delivery Service. This is nearly always expressed as an integral, unique identifier for each behavior, though in Traffic Portal a more descriptive value is typically used, or at least provided in addition to the integral, unique identifier. The allowed values and their meanings are:
 
 0
-	For the purposes of caching, :term:`Edge-tier cache server`\ s will consider URLs unique if and only if they are unique up to and including any and all query parameters. They will also pass the query parameters in their own requests to :term:`Mid-tier cache server`\ s (which in turn will exhibit the same caching behavior and pass the query parameters in requests to the :term:`origin`). (Aliased as "USE" in Traffic Portal tables, and "0 - use qstring in cache key, and pass up" in Traffic Portal forms)
+	For the purposes of caching, :term:`Edge-tier cache servers` will consider URLs unique if and only if they are unique up to and including any and all query parameters. They will also pass the query parameters in their own requests to :term:`Mid-tier cache servers` (which in turn will exhibit the same caching behavior and pass the query parameters in requests to the :term:`origin`). (Aliased as "USE" in Traffic Portal tables, and "0 - use qstring in cache key, and pass up" in Traffic Portal forms)
 1
-	For the purposes of caching, neither :term:`Edge-tier` nor :term:`Mid-tier cache server`\ s will consider the query parameter string when determining if a URL is stored in cache. However, the query string will still be passed in upstream requests to :term:`Mid-tier cache server`\ s and in turn the :term:`origin`. (Aliased as "IGNORE" in Traffic Portal tables and "1 - ignore in cache key, and pass up" in Traffic Portal forms)
+	For the purposes of caching, neither :term:`Edge-tier` nor :term:`Mid-tier cache servers` will consider the query parameter string when determining if a URL is stored in cache. However, the query string will still be passed in upstream requests to :term:`Mid-tier cache servers` and in turn the :term:`origin`. (Aliased as "IGNORE" in Traffic Portal tables and "1 - ignore in cache key, and pass up" in Traffic Portal forms)
 2
 	The query parameter string will be stripped from URLs immediately when the request is received by an :term:`Edge-tier cache server`. This means it is never considered for the purposes of caching unique URLs and will not be passed in upstream requests. (Aliased as "DROP" in Traffic Portal tables and "2 - drop at edge" in Traffic Portal forms)
 
@@ -496,9 +593,11 @@ The Delivery Service's Query String Handling can be set directly as a field on t
 
 .. seealso:: When implemented as a :term:`Parameter` (``psel.qstring_handling``), its value must be a valid value for the ``qstring`` field of a line in the :abbr:`ATS (Apache Traffic Server)` ``parent.config`` configuration file. For a description of valid values, see the `documentation for parent.config <https://docs.trafficserver.apache.org/en/7.1.x/admin-guide/files/parent.config.en.html>`_
 
+.. _ds-range-request-handling:
+
 Range Request Handling
 ----------------------
-Describes how HTTP "Range Requests" should be handled by the Delivery Service at the :term:`Edge-tier`. This is nearly always an integral, unique identifier for the behavior set required of the :term:`Edge-tier cache server`\ s. The valid values and their respective meanings are:
+Describes how HTTP "Range Requests" should be handled by the Delivery Service at the :term:`Edge-tier`. This is nearly always an integral, unique identifier for the behavior set required of the :term:`Edge-tier cache servers`. The valid values and their respective meanings are:
 
 0
 	Do not cache Range Requests at all. (Aliased as "0 - Don't cache" in Traffic Portal forms)
@@ -510,7 +609,7 @@ Describes how HTTP "Range Requests" should be handled by the Delivery Service at
 2
 	Use the `cache_range_requests <https://github.com/apache/trafficserver/tree/7.1.x/plugins/experimental/cache_range_requests>`_ plugin to cache ranges as unique objects. (Aliased as "2 - Use cache_range_requests plugin" in Traffic Portal forms)
 
-.. note:: Range Request Handling can only be implemented on :term:`cache server`\ s using :abbr:`ATS (Apache Traffic Server)` because of its dependence on :abbr:`ATS (Apache Traffic Server)` plugins. The value may be set on any Delivery Service, but will have no effect when the :term:`cache server`\ s that ultimately end up serving the content are e.g. Grove, Nginx, etc.
+.. note:: Range Request Handling can only be implemented on :term:`cache servers` using :abbr:`ATS (Apache Traffic Server)` because of its dependence on :abbr:`ATS (Apache Traffic Server)` plugins. The value may be set on any Delivery Service, but will have no effect when the :term:`cache servers` that ultimately end up serving the content are e.g. Grove, Nginx, etc.
 
 .. warning:: The definitions of each integral, unique identifier are hidden in implementations in each :abbr:`ATC (Apache Traffic Control)` component. Different components will handle invalid values differently, and there's no actual enforcement that the stored integral, unique identifier actually be within the representable range.
 
@@ -524,6 +623,8 @@ For HTTP and DNS-:ref:`Routed <ds-types>` Delivery Services, this will be added 
 
 .. note:: This field **must** be defined on ANY_MAP-`Type`_ Delivery Services, but is otherwise optional.
 
+.. seealso:: `The Apache Trafficserver documentation for the Regex Remap plugin <https://docs.trafficserver.apache.org/en/latest/admin-guide/plugins/regex_remap.en.html>`_
+
 .. table:: Aliases
 
 	+-----------+-----------------------------------------------------------------+---------------------------------------+
@@ -531,6 +632,8 @@ For HTTP and DNS-:ref:`Routed <ds-types>` Delivery Services, this will be added 
 	+===========+=================================================================+=======================================+
 	| remapText | In Traffic Ops source code and :ref:`to-api` requests/responses | unchanged (``text``, ``string`` etc.) |
 	+-----------+-----------------------------------------------------------------+---------------------------------------+
+
+.. _ds-regex-remap:
 
 Regex Remap Expression
 ----------------------
@@ -544,6 +647,8 @@ Allows remapping of incoming requests URL using regular expressions to search an
 
 	.. tip:: It is, of course, entirely possible to write a Regex Remap Expression that reproduces the desired `Query String Handling`_ as well as any other desired behavior.
 
+.. seealso:: `The Apache Trafficserver documentation for the Regex Remap plugin <https://docs.trafficserver.apache.org/en/latest/admin-guide/plugins/regex_remap.en.html>`_
+
 .. table:: Aliases
 
 	+------------+----------------------------------------------------------------------------+-----------------------------+
@@ -552,25 +657,35 @@ Allows remapping of incoming requests URL using regular expressions to search an
 	| regexRemap | Traffic Ops source code and database, and :ref:`to-api` requests/responses | unchanged (``string`` etc.) |
 	+------------+----------------------------------------------------------------------------+-----------------------------+
 
+.. _ds-regionalgeo:
+
 Regional Geoblocking
 --------------------
 A boolean value that defines whether or not :ref:`Regional Geoblocking <regionalgeo-qht>` is active on this Delivery Service. The actual configuration of :ref:`Regional Geoblocking <regionalgeo-qht>` is done in the :term:`Profile` used by the Traffic Router serving the Delivery Service. Rules for this Delivery Service may exist, but they will not actually be used unless this field is ``true``.
 
 .. tip:: :ref:`Regional Geoblocking <regionalgeo-qht>` is configured primarily with respect to Canadian postal codes, so unless specifically Canadian regions should be allowed/disallowed to access content, `Geo Limit`_ is probably a better setting for controlling access to content according to geographic location.
 
+.. _ds-routing-name:
+
 Routing Name
 ------------
 A DNS label in the Delivery Service's domain that forms the :abbr:`FQDN (Fully Qualified Domain Name)` that is used by clients to request content. All together, the constructed :abbr:`FQDN (Fully Qualified Domain Name)` looks like: :file:`{Delivery Service Routing Name}.{Delivery Service xml_id}.{CDN Subdomain}.{CDN Domain}.{Top-Level Domain}`\ [#xmlValid]_.
 
+.. _ds-servers:
+
 Servers
 -------
 Servers can be assigned to Delivery Services using the :ref:`tp-configure-servers` and :ref:`tp-services-delivery-service` Traffic Portal sections, or by directly using the :ref:`to-api-deliveryserviceserver` endpoint. Only :term:`Edge-tier cache servers` can be assigned to a Delivery Service, and once they are so assigned they will begin to serve content for the Delivery Service (after updates are queued and then applied). Any servers assigned to a Delivery Service must also belong to the same CDN_ as the Delivery Service itself. At least one server must be assigned to a Delivery Service in order for it to serve any content.
+
+.. _ds-signing-algorithm:
 
 Signing Algorithm
 -----------------
 URLs/URIs may be signed using one of two algorithms before a request for the content to which they refer is sent to the :term:`origin` (which in practice can be any upstream network). At the time of this writing, this field is restricted within the Traffic Ops Database to one of two values (or ``NULL``/"None", to indicate no signing should be done).
 
 .. seealso:: The url_sig `README <https://github.com/apache/trafficserver/blob/master/plugins/experimental/url_sig/README>`_.
+
+.. seealso:: `The draft RFC for uri_signing <https://tools.ietf.org/html/draft-ietf-cdni-uri-signing-16>`_ - note, however that the current implementation of uri_signing uses Draft 12 of that RFC document, **NOT** the latest.
 
 url_sig
 	URL signing will be implemented in this Delivery Service using the `url_sig Apache Traffic Server plugin <https://docs.trafficserver.apache.org/en/7.1.x/admin-guide/plugins/url_sig.en.html>`_. (Aliased as "URL Signature Keys" in Traffic Portal forms)
@@ -588,11 +703,23 @@ uri_signing
 
 Keys for either algorithm can be generated within :ref:`Traffic Portal <tp-services-delivery-service>`.
 
+.. _ds-ssl-key-version:
+
+SSL Key Version
+---------------
+An integer that describes the version of the SSL key(s) - if any - used by this Delivery Service. This is incremented whenever Traffic Portal generates new SSL keys for the Delivery Service.
+
+.. warning:: This number will not be correct if keys are manually replaced using the API, as the key generation API does not increment it!
+
+.. _ds-static-dns-entries:
+
 Static DNS Entries
 ------------------
 Static DNS Entries can be added *under* a Delivery Service's domain. These DNS records can be configured in the :ref:`tp-services-delivery-service` section of Traffic Portal, and can be any valid CNAME, A or AAAA DNS record - provided the associated hostname falls within the DNS domain for the Delivery Service. For example, a Delivery Service with xml_id_ "demo1" and belonging to a CDN_ with domain "mycdn.ciab.test" could have Static DNS Entries for hostnames "foo.demo1.mycdn.ciab.test" or "foo.bar.demo1.mycdn.ciab.test" but not "foo.bar.mycdn.ciab.test" or "foo.bar.test".
 
 .. note:: The `Routing Name`_ of a Delivery Service is not part of the :abbr:`SOA (Start of Authority)` record for the Delivery Service's domain, and so there is no need to place Static DNS Entries below a domain containing it.
+
+.. _ds-tenant:
 
 Tenant
 ------
@@ -605,6 +732,8 @@ The :term:`Tenant` who owns this Delivery Service. They (and their parents, if a
 	+==========+==============================================+========================================================+
 	| TenantID | Go code and :ref:`to-api` requests/responses | Integral, unique identifier (``bigint``, ``int`` etc.) |
 	+----------+----------------------------------------------+--------------------------------------------------------+
+
+.. _ds-tr-resp-headers:
 
 Traffic Router Additional Response Headers
 ------------------------------------------
@@ -620,6 +749,8 @@ List of HTTP header ``{{name}}:{{value}}`` pairs separated by ``__RETURN__`` or 
 	+===================+========================================================================================+=============================+
 	| trResponseHeaders | Traffic Control source code and Delivery Service objects returned by the :ref:`to-api` | unchanged (``string`` etc.) |
 	+-------------------+----------------------------------------------------------------------------------------+-----------------------------+
+
+.. _ds-tr-req-headers:
 
 Traffic Router Log Request Headers
 ----------------------------------
@@ -654,7 +785,7 @@ HTTP
 More generally, though, Delivery Services have a Type that defines not only how traffic is routed, but also how content is cached and semantically defines what "content" means in the context of a given Delivery Service.
 
 ANY_MAP
-	This is a special kind of Delivery Service that should only be used when control over the clients is guaranteed, and very fine control over the :abbr:`ATS (Apache Traffic Server)` `remap.config  <https://docs.trafficserver.apache.org/en/7.1.x/admin-guide/files/remap.config.en.html>`_ line for this Delivery Service is required. ANY_MAP is not known to Traffic Router. It is not routed in any way. For Delivery Services of this type, the "Raw Remap Text" field **must** be defined, as it is the only configuration generated by Traffic Control. The only way for a client to utilize delivery through an ANY_MAP service is by knowing in advance the IP address of one or more :term:`Edge-tier cache server`\ s and make the appropriate request(s).
+	This is a special kind of Delivery Service that should only be used when control over the clients is guaranteed, and very fine control over the :abbr:`ATS (Apache Traffic Server)` `remap.config  <https://docs.trafficserver.apache.org/en/7.1.x/admin-guide/files/remap.config.en.html>`_ line for this Delivery Service is required. ANY_MAP is not known to Traffic Router. It is not routed in any way. For Delivery Services of this type, the "Raw Remap Text" field **must** be defined, as it is the only configuration generated by Traffic Control. The only way for a client to utilize delivery through an ANY_MAP service is by knowing in advance the IP address of one or more :term:`Edge-tier cache servers` and make the appropriate request(s).
 DNS
 	Uses DNS content routing. Delivers content normally. This is the recommended Type for delivering smaller objects like web page images.
 DNS_LIVE\ [#dupOrigin]_

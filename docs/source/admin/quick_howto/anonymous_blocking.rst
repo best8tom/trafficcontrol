@@ -21,7 +21,7 @@ Configure Anonymous Blocking
 
 .. Note:: Anonymous Blocking is only supported for HTTP delivery services. You will need access to a database that provides anonymous IP statistics (`Maxmind's database <https://www.maxmind.com/en/solutions/geoip2-enterprise-product-suite/anonymous-ip-database>`_ is recommended, as this functionality was built specifically to work with it.)
 
-#. Prepare the Anonymous Blocking configuration file. Anonymous Blocking uses a configuration file in JSON format to define blocking rules for :term:`Delivery Service`\ s. The file needs to be put on an HTTP server accessible to Traffic Router.
+#. Prepare the Anonymous Blocking configuration file. Anonymous Blocking uses a configuration file in JSON format to define blocking rules for :term:`Delivery Services`. The file needs to be put on an HTTP server accessible to Traffic Router.
 
 	.. code-block:: json
 		:caption: Example Configuration JSON
@@ -50,7 +50,7 @@ Configure Anonymous Blocking
 		An optional element. It includes a list of :abbr:`CIDR (Classless Inter-Domain Routing)` blocks indicating the IPv4 and IPv6 subnets that are allowed by the rule. If this list exists and the value is not ``null``, client IPs will be matched against the :abbr:`CIDR (Classless Inter-Domain Routing)` list, and if there is any match, the request will be allowed. If there is no match in the white list, further anonymous blocking logic will continue.
 
 
-#. Add the following three Anonymous Blocking parameters in Traffic Portal with the "CRConfig.json" "Config File", and ensure they are assigned to all of the Traffic Routers that should perform Anonymous Blocking:
+#. Add the following three Anonymous Blocking :ref:`Parameters` in Traffic Portal with the "CRConfig.json" :ref:`parameter-config-file`, and ensure they are assigned to all of the Traffic Routers that should perform Anonymous Blocking:
 
 	``anonymousip.policy.configuration``
 		The URL of the Anonymous Blocking configuration file. Traffic Router will fetch the file from this URL.

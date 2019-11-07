@@ -18,7 +18,15 @@
 ******************
 Traffic Router API
 ******************
-By default, Traffic Router serves its API via HTTP (not HTTPS) on port 3333. This can be configured in :file:`/opt/traffic_router/conf/server.xml` or by setting a :term:`Parameter` named ``api.port`` with ``configFile`` ``server.xml`` on the Traffic Router's :term:`Profile`.
+By default, Traffic Router serves its API via HTTP (not HTTPS) on port 3333. This can be configured in :file:`/opt/traffic_router/conf/server.xml` or by setting a :term:`Parameter` with the :ref:`parameter-name` "api.port", and the :ref:`parameter-config-file` "server.xml" on the Traffic Router's :term:`Profile`.
+
+The API can be configured via HTTPS on port 3443 in :file:`/opt/traffic_router/conf/server.xml` or by setting a :term:`Parameter` named ``secure.api.port`` with ``configFile`` ``server.xml`` on the Traffic Router's :term:`Profile`.  The post install script will generate self signed certificates at ``/opt/traffic_router/conf/``, create a new Java Keystore named :file:`/opt/traffic_router/conf/keyStore.jks`, and add the new certificate to the Keystore.  The password for the Java Keystore and the Keystore location are stored in :file:`/opt/traffic_router/conf/https.properties`.
+To override the self signed certificates with new ones from a certificate authority, update the properties for the Keystore location and password at :file:`/opt/traffic_router/conf/https.properties`.
+
+
+The API can be configured via HTTPS on port 3443 in :file:`/opt/traffic_router/conf/server.xml` or by setting a :term:`Parameter` named ``secure.api.port`` with ``configFile`` ``server.xml`` on the Traffic Router's :term:`Profile`.  When ``systemctl start traffic_router`` is run, it will generate self signed certificates at ``/opt/traffic_router/conf/``, create a new Java Keystore named :file:`/opt/traffic_router/conf/keyStore.jks`, and add the new certificate to the Keystore.  The password for the Java Keystore and the Keystore location are stored in :file:`/opt/traffic_router/conf/https.properties`.
+To override the self signed certificates with new ones from a certificate authority, either replace the Java Keystore in the default location or update the properties for the new Keystore location and password at :file:`/opt/traffic_router/conf/https.properties` and then restart the Traffic Router using ``systemctl``.
+
 
 Traffic Router API endpoints only respond to ``GET`` requests.
 
@@ -143,7 +151,7 @@ Response Structure
 
 ``/crs/locations``
 ==================
-A list of configured :term:`Cache Group`\ s to which the Traffic Router is capable of routing client traffic.
+A list of configured :term:`Cache Groups` to which the Traffic Router is capable of routing client traffic.
 
 Request Structure
 -----------------
@@ -157,7 +165,7 @@ Request Structure
 
 Response Structure
 ------------------
-:locations: An array of the names of :term:`Cache Group`\ s to which this Traffic Router is capable of routing client traffic
+:locations: An array of the names of :term:`Cache Groups` to which this Traffic Router is capable of routing client traffic
 
 .. code-block:: http
 	:caption: Response Example
@@ -218,7 +226,7 @@ Response Structure
 
 ``/crs/locations/{{cachegroup}}/caches``
 ========================================
-A list of :term:`cache server`\ s for this :term:`Cache Group` only.
+A list of :term:`cache servers` for this :term:`Cache Group` only.
 
 Request Structure
 -----------------
@@ -227,7 +235,7 @@ Request Structure
 	+------------+------------------------------------------------------------------------------------------------------------+
 	| Name       | Description                                                                                                |
 	+============+============================================================================================================+
-	| cachegroup | The name of a :term:`Cache Group` of which a list of constituent :term:`cache server`\ s will be retrieved |
+	| cachegroup | The name of a :term:`Cache Group` of which a list of constituent :term:`cache servers` will be retrieved   |
 	+------------+------------------------------------------------------------------------------------------------------------+
 
 
@@ -337,7 +345,7 @@ TBD
 
 ``/crs/consistenthash/deliveryservice/``
 ========================================
-The resulting :term:`Delivery Service` of the consistent hash for a given :term:`Delivery Service` and request path -- used to test STEERING :term:`Delivery Service`\ s.
+The resulting :term:`Delivery Service` of the consistent hash for a given :term:`Delivery Service` and request path -- used to test STEERING :term:`Delivery Services`.
 
 Request Structure
 -----------------

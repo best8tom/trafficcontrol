@@ -46,6 +46,7 @@ func OpenConnection() (*sql.DB, error) {
 }
 
 // SetupTestData ...
+// TODO error does not need returned as this function can never return a non-nil error
 func SetupTestData(*sql.DB) error {
 	var err error
 
@@ -88,6 +89,18 @@ func SetupTestData(*sql.DB) error {
 	err = SetupJobStatuses(db)
 	if err != nil {
 		fmt.Printf("\nError setting up job agents %s - %s, %v\n", Config.TrafficOps.URL, Config.TrafficOps.Users.Admin, err)
+		os.Exit(1)
+	}
+
+	err = SetupTypes(db)
+	if err != nil {
+		fmt.Printf("\nError setting up types %s - %s, %v\n", Config.TrafficOps.URL, Config.TrafficOps.Users.Admin, err)
+		os.Exit(1)
+	}
+
+	err = SetupToExtensions(db)
+	if err != nil {
+		fmt.Printf("\nError setting up to_extensions %s - %s, %v\n", Config.TrafficOps.URL, Config.TrafficOps.Users.Admin, err)
 		os.Exit(1)
 	}
 
@@ -155,6 +168,7 @@ INSERT INTO tm_user (username, local_passwd, role, tenant_id) VALUES ('` + Confi
 INSERT INTO tm_user (username, local_passwd, role, tenant_id) VALUES ('` + Config.TrafficOps.Users.Admin + `','` + encryptedPassword + `', 4, 1);
 INSERT INTO tm_user (username, local_passwd, role, tenant_id) VALUES ('` + Config.TrafficOps.Users.Portal + `','` + encryptedPassword + `', 5, 1);
 INSERT INTO tm_user (username, local_passwd, role, tenant_id) VALUES ('` + Config.TrafficOps.Users.Federation + `','` + encryptedPassword + `', 6, 1);
+INSERT INTO tm_user (username, local_passwd, role, tenant_id) VALUES ('` + Config.TrafficOps.Users.Extension + `','` + encryptedPassword + `', 3, 1);
 `
 	err = execSQL(db, sqlStmt, "tm_user")
 	if err != nil {
@@ -233,10 +247,43 @@ INSERT INTO job (id, agent, object_type, object_name, keyword, parameters, asset
 	return nil
 }
 
+// SetupTypes Set up to_extension types
+func SetupTypes(db *sql.DB) error {
+
+	sqlStmt := `
+INSERT INTO type (name, description, use_in_table) VALUES ('CHECK_EXTENSION_BOOL', 'Extension for checkmark in Server Check', 'to_extension');
+INSERT INTO type (name, description, use_in_table) VALUES ('CHECK_EXTENSION_NUM', 'Extension for int value in Server Check', 'to_extension');
+INSERT INTO type (name, description, use_in_table) VALUES ('CHECK_EXTENSION_OPEN_SLOT', 'Open slot for check in Server Status', 'to_extension');
+`
+	err := execSQL(db, sqlStmt, "type")
+	if err != nil {
+		return fmt.Errorf("exec failed %v", err)
+	}
+	return nil
+}
+
+// SetupToExtensions setup open slot in to_extension table
+func SetupToExtensions(db *sql.DB) error {
+
+	sqlStmt := `
+INSERT INTO to_extension (name, version, info_url, isactive, script_file, servercheck_column_name, type) VALUES ('OPEN', '1.0.0', '-', false, '', 'aa', (SELECT id FROM type WHERE name = 'CHECK_EXTENSION_OPEN_SLOT'));
+INSERT INTO to_extension (name, version, info_url, isactive, script_file, servercheck_column_name, type) VALUES ('OPEN', '1.0.0', '-', false, '', 'ab', (SELECT id FROM type WHERE name = 'CHECK_EXTENSION_OPEN_SLOT'));
+	`
+	err := execSQL(db, sqlStmt, "to_extension")
+	if err != nil {
+		return fmt.Errorf("exec failed %v", err)
+	}
+	return nil
+}
+
 // Teardown - ensures that the data is cleaned up for a fresh run
 func Teardown(db *sql.DB) error {
 
 	sqlStmt := `
+	DELETE FROM deliveryservices_required_capability;
+	DELETE FROM server_server_capability;
+	DELETE FROM server_server_capability;
+	DELETE FROM server_capability;
 	DELETE FROM to_extension;
 	DELETE FROM staticdnsentry;
 	DELETE FROM job;

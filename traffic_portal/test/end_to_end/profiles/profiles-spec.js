@@ -33,9 +33,26 @@ describe('Traffic Portal Profiles Test Suite', function() {
 		expect(browser.getCurrentUrl().then(commonFunctions.urlPath)).toEqual(commonFunctions.urlPath(browser.baseUrl)+"#!/profiles");
 	});
 
+	it('should verify CSV link exists ', function() {
+		console.log("Verify CSV button exists");
+		expect(element(by.css('.dt-button.buttons-csv')).isPresent()).toBe(true);
+	});
+
+	it('should compare profiles', function() {
+		pageData.moreBtn.click();
+		pageData.compareProfilesMenuItem.click();
+		expect(pageData.compareSubmit.isEnabled()).toBe(false);
+		commonFunctions.selectDropdownbyNum(pageData.compareDropdown1, 1);
+		commonFunctions.selectDropdownbyNum(pageData.compareDropdown2, 2);
+		expect(pageData.compareSubmit.isEnabled()).toBe(true);
+		pageData.compareSubmit.click();
+		expect(browser.getCurrentUrl().then(commonFunctions.urlPath)).toMatch(commonFunctions.urlPath(browser.baseUrl)+"#!/profiles/[0-9]+/[0-9]+/compare/diff");
+	});
+
 	it('should open new profile form page', function() {
 		console.log("Open new profile form page");
-		browser.driver.findElement(by.name('createProfileButton')).click();
+		browser.setLocation("profiles");
+		pageData.createProfileButton.click();
 		expect(browser.getCurrentUrl().then(commonFunctions.urlPath)).toEqual(commonFunctions.urlPath(browser.baseUrl)+"#!/profiles/new");
 	});
 
@@ -50,7 +67,7 @@ describe('Traffic Portal Profiles Test Suite', function() {
 		pageData.description.sendKeys(myNewProfile.name);
 		expect(pageData.createButton.isEnabled()).toBe(true);
 		pageData.createButton.click();
-		expect(browser.getCurrentUrl().then(commonFunctions.urlPath)).toEqual(commonFunctions.urlPath(browser.baseUrl)+"#!/profiles");
+		expect(browser.getCurrentUrl().then(commonFunctions.urlPath)).toMatch(commonFunctions.urlPath(browser.baseUrl)+"#!/profiles/[0-9]+/parameters");
 	});
 
 });
